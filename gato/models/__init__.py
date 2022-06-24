@@ -1,4 +1,4 @@
-from gato.models.transformer import TransformerBlock
+from gato.models.transformer import TransformerBlock, PoolerOutput
 from gato.models.embedding import PatchPositionEncoding, ResidualEmbedding, LocalPositionEncoding
 from gato.models.tokenizers import ContinuousValueTokenizer
 
@@ -20,7 +20,7 @@ class GatoTransformer(models.Model):
             x = TransformerBlock(config=self.config,
                                  trainable=trainable,
                                  name='transformer_block_{}'.format(idx))(x)
-
+        x = PoolerOutput(config, name='pooler_output')(x)
         super(GatoTransformer, self).__init__(inputs=inputs, outputs=x, trainable=trainable, name=name)
 
     def call(self, inputs, training=None, mask=None):

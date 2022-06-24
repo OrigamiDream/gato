@@ -5,6 +5,35 @@ from gato import GatoConfig
 from typing import Dict, Any, Union
 
 
+class PoolerOutput(layers.Layer):
+
+    def __init__(self,
+                 config: Union[GatoConfig, Dict[str, Any]],
+                 trainable=True, name=None, *args, **kwargs):
+        super(PoolerOutput, self).__init__(trainable=trainable, name=name, *args, **kwargs)
+
+        if isinstance(config, dict):
+            config = GatoConfig(**config)
+        self.config = config
+        self.outputs = None
+
+    def build(self, input_shape):
+        self.outputs = layers.Dense(self.config.output_target_size, activation='tanh', name='outputs')
+        self.built = True
+
+    def call(self, inputs, *args, **kwargs):
+        x = tf.squeeze(inputs[:, 0:1, :], axis=1)
+        x = self.outputs(x)
+        return x
+
+    def get_config(self):
+        config = super(PoolerOutput, self).get_config()
+        config.update({
+            'config': self.config.to_dict(),
+        })
+        return config
+
+
 class TransformerBlock(layers.Layer):
 
     def __init__(self,

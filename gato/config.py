@@ -62,6 +62,10 @@ class GatoConfig:
     def embedding_input_size(self):
         return self.vocabulary_size + self.continuous_values_size + self.actions_size + 1
 
+    @property
+    def output_target_size(self):
+        return self.vocabulary_size + self.actions_size
+
     def to_dict(self) -> Dict[str, Any]:
         output = copy.deepcopy(self.__dict__)
         return output
