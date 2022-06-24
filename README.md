@@ -34,13 +34,13 @@ But, you can still explore the basic architecture of the Gato based on the paper
 In the paper, Deepmind tested Gato with 3 architecture variants, `1.18B`, `364M`, and `79M`.<br>
 I have named them as `large()`, `baseline()` and `small()` respectively in `GatoConfig`.
 
-| Hyperparameters          | Large(1.18B) | Baseline(364M) | Small(79) |
-|--------------------------|--------------|----------------|-----------|
-| Transformer blocks       | 24           | 12             | 8         |
-| Attention heads          | 16           | 12             | 24        |
-| Layer width              | 2048         | 1536           | 768       |
-| Feedforward hidden size  | 8192         | 6144           | 3072      |
-| Key/value size           | 128          | 128            | 32        |
+| Hyperparameters          | Large(1.18B) | Baseline(364M) | Small(79M) |
+|--------------------------|--------------|----------------|------------|
+| Transformer blocks       | 24           | 12             | 8          |
+| Attention heads          | 16           | 12             | 24         |
+| Layer width              | 2048         | 1536           | 768        |
+| Feedforward hidden size  | 8192         | 6144           | 3072       |
+| Key/value size           | 128          | 128            | 32         |
 
 
 ### Residual Embedding
