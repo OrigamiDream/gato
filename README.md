@@ -9,11 +9,11 @@ Since Deepmind only mentions parts of the architecture in its paper, We still do
 However, I believe the paper is enough to imitate the architecture, I'm trying to do that with open source community's help.
 
 Currently, the repository supports following operations:
-- Transformer (via `GatoTransformer`)
-- Patch Position Encodings (via `PatchEmbedding`)
-- Embedding Function (via `ResidualEmbedding`)
-- Local Observation Position Encodings (via `LocalPositionEncoding`)
-- Tokenizing Continuous Values (via `ContinuousValueTokenizer`)
+- Transformer (via [`GatoTransformer`](https://github.com/OrigamiDream/gato/blob/main/gato/models/__init__.py#L10))
+- Patch Position Encodings (via [`PatchPositionEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L11))
+- Embedding Function (via [`ResidualEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L119))
+- Local Observation Position Encodings (via [`LocalPositionEncoding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L209))
+- Tokenizing Continuous Values (via [`ContinuousValueTokenizer`](https://github.com/OrigamiDream/gato/blob/main/gato/models/tokenizers.py#L30))
 
 Action tokens are still mystery in the paper, I need your help.
 
@@ -86,12 +86,12 @@ $$
   \end{bmatrix} \\
   \\
   P_R &= \begin{cases}
-    v^R_F + \mathsf{uniform}(v^R_T - v^R_F) & \mathsf{if} \ \mathsf{training} \\
-    \mathsf{round}(\frac{v^R_F + v^R_T}{2}) & \mathsf{otherwise}
+    \mathsf{if} \ \mathsf{training} & v^R_F + \mathsf{uniform}(v^R_T - v^R_F) \\
+    \mathsf{otherwise} & \mathsf{round}(\frac{v^R_F + v^R_T}{2})
   \end{cases} \\
   P_C &= \begin{cases}
-    v^C_F + \mathsf{uniform}(v^C_T - v^C_F) & \mathsf{if} \ \mathsf{training} \\
-    \mathsf{round}(\frac{v^C_F + v^C_T}{2}) & \mathsf{otherwise}
+    \mathsf{if} \ \mathsf{training} & v^C_F + \mathsf{uniform}(v^C_T - v^C_F) \\
+    \mathsf{otherwise} & \mathsf{round}(\frac{v^C_F + v^C_T}{2})
   \end{cases} \\
   \\
   E^R_P &= P_R \cdot 1^{\mathsf{T}}_C \\
@@ -120,4 +120,4 @@ Currently no downloads, no executables provided.
 I welcome many contributors who can help.
 
 ## License
-Licensed under the MIT license.
+Licensed under the [MIT license](https://github.com/OrigamiDream/gato/blob/main/LICENSE).
