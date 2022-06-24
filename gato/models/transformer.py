@@ -35,7 +35,7 @@ class TransformerBlock(layers.Layer):
             layers.Dense(units=self.config.feedforward_hidden_size,
                          activation='linear',
                          name='dense_intermediate'),
-            # Appendix.C.1. Transformer Hyperparameters
+            # Appendix C.1. Transformer Hyperparameters
             # Activation Function: GEGLU
             layers.Lambda(lambda x: activations.gelu(x, approximate=False), name='gelu'),
             layers.Dropout(self.config.dropout_rate, name='dropout_intermediate'),
@@ -48,7 +48,7 @@ class TransformerBlock(layers.Layer):
         self.layer_norm2 = layers.LayerNormalization(epsilon=1e-6, name='layer_norm2')
 
     def call(self, inputs, *args, **kwargs):
-        # Appendix.C.1. Transformer Hyperparameters
+        # Appendix C.1. Transformer Hyperparameters
         # Layer Normalization: Pre-Norm
         residual = inputs
         x = self.layer_norm1(inputs)
