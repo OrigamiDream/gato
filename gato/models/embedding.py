@@ -8,6 +8,37 @@ from gato import GatoConfig
 from typing import Dict, Any, Union
 
 
+def _randomized_positions(from_v, to_v):
+    pos = tf.random.uniform(from_v.shape, minval=0, maxval=1, dtype=tf.float32)
+    pos = pos * tf.cast(to_v - from_v, dtype=tf.float32)
+    pos = tf.cast(pos, dtype=tf.int32)
+    return pos
+
+
+def _rounded_mean_positions(from_v, to_v):
+    pos = tf.cast(from_v + to_v, tf.float32)
+    pos = pos / 2
+    pos = tf.round(pos)
+    pos = tf.cast(pos, dtype=tf.int32)
+    return pos
+
+
+def _broadcast(row_pos, col_pos, row_ones, col_ones):
+    # broadcast (5,) to (20,) with column-axis
+    row_pos = tf.expand_dims(row_pos, 1)
+    row_pos = tf.matmul(row_pos, col_ones, transpose_b=True)
+    row_pos = tf.reshape(row_pos, (-1,))
+    row_pos = tf.stop_gradient(row_pos)
+
+    # broadcast (4,) to (20,) with row-axis
+    col_pos = tf.expand_dims(col_pos, 1)
+    col_pos = tf.matmul(row_ones, col_pos, transpose_b=True)
+    col_pos = tf.reshape(col_pos, (-1,))
+    col_pos = tf.stop_gradient(col_pos)
+
+    return row_pos, col_pos
+
+
 class PatchPositionEncoding(layers.Layer):
 
     def __init__(self,
@@ -34,75 +65,54 @@ class PatchPositionEncoding(layers.Layer):
 
         self.rows_from = self.rows_to = self.cols_from = self.cols_to = None
         self.row_embedding = self.col_embedding = None
-        self.row_ones = self.col_ones = None
+        self.row_train_pos = self.col_train_pos = None
+        self.row_eval_pos = self.col_eval_pos = None
+
+    def _discretize(self, pos):
+        return round(pos * self.discretize_depth)
+
+    def _discretize_interval(self, axis_num):
+        axis_from = []
+        axis_to = []
+        for index in range(axis_num // self.patch_size):
+            from_pos = index * self.patch_size / axis_num
+            to_pos = (index + 1) * self.patch_size / axis_num
+            axis_from.append(self._discretize(from_pos))
+            axis_to.append(self._discretize(to_pos))
+        return axis_from, axis_to
 
     def build(self, input_shape):
-        def _discretize(pos):
-            return round(pos * self.discretize_depth)
-
-        def _discretize_interval(axis_num):
-            axis_from = []
-            axis_to = []
-            for index in range(axis_num // self.patch_size):
-                from_pos = index * self.patch_size / axis_num
-                to_pos = (index + 1) * self.patch_size / axis_num
-                axis_from.append(_discretize(from_pos))
-                axis_to.append(_discretize(to_pos))
-            return axis_from, axis_to
-
         # Appendix C.3. Position Encodings; Figure 15 | Patch position encodings.
-        rows_from, rows_to = _discretize_interval(self.height)
-        cols_from, cols_to = _discretize_interval(self.width)
+        rows_from, rows_to = self._discretize_interval(self.height)
+        cols_from, cols_to = self._discretize_interval(self.width)
 
         self.rows_from = tf.convert_to_tensor(rows_from, dtype=tf.int32)
         self.rows_to = tf.convert_to_tensor(rows_to, dtype=tf.int32)
         self.cols_from = tf.convert_to_tensor(cols_from, dtype=tf.int32)
         self.cols_to = tf.convert_to_tensor(cols_to, dtype=tf.int32)
 
-        self.row_ones = tf.ones(shape=(self.height // self.patch_size, 1), dtype=tf.int32)
-        self.col_ones = tf.ones(shape=(self.width // self.patch_size, 1), dtype=tf.int32)
-
         self.row_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='row_embedding')
         self.col_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='col_embedding')
 
+        row_ones = tf.ones(shape=(self.height // self.patch_size, 1), dtype=tf.int32)
+        col_ones = tf.ones(shape=(self.width // self.patch_size, 1), dtype=tf.int32)
+
+        # > During training a random index is uniformly sampled from the quantized interval.
+        self.row_train_pos, self.col_train_pos = _broadcast(self.rows_from + _randomized_positions(self.rows_from, self.rows_to),
+                                                            self.cols_from + _randomized_positions(self.cols_from, self.cols_to),
+                                                            row_ones, col_ones)
+        # > During evaluation we deterministically take the (rounded) mean of the interval.
+        self.row_eval_pos, self.col_eval_pos = _broadcast(_rounded_mean_positions(self.rows_from, self.rows_to),
+                                                          _rounded_mean_positions(self.cols_from, self.cols_to),
+                                                          row_ones, col_ones)
         self.built = True
 
     def call(self, inputs, *args, **kwargs):
-
-        def _randomized_positions(from_v, to_v):
-            pos = tf.random.uniform(from_v.shape, minval=0, maxval=1, dtype=tf.float32)
-            pos = pos * tf.cast(to_v - from_v, dtype=tf.float32)
-            pos = tf.cast(pos, dtype=tf.int32)
-            return pos
-
-        def _rounded_mean_positions(from_v, to_v):
-            pos = tf.cast(from_v + to_v, tf.float32)
-            pos = pos / 2
-            pos = tf.round(pos)
-            pos = tf.cast(pos, dtype=tf.int32)
-            return pos
-
         # Appendix C.3. Position Encodings
         training = kwargs['training'] if 'training' in kwargs else False
-        if training:
-            # > During training a random index is uniformly sampled from the quantized interval.
-            row_pos = self.rows_from + _randomized_positions(self.rows_from, self.rows_to)
-            col_pos = self.cols_from + _randomized_positions(self.cols_from, self.cols_to)
-        else:
-            # > During evaluation we deterministically take the (rounded) mean of the interval.
-            row_pos = _rounded_mean_positions(self.rows_from, self.rows_to)
-            col_pos = _rounded_mean_positions(self.cols_from, self.cols_to)
-
-        # broadcast (5,) to (20,) with column-axis
-        row_pos = tf.expand_dims(row_pos, 1)
-        row_pos = tf.matmul(row_pos, self.col_ones, transpose_b=True)
-        row_pos = tf.reshape(row_pos, (-1,))
-
-        # broadcast (4,) to (20,) with row-axis
-        col_pos = tf.expand_dims(col_pos, 1)
-        col_pos = tf.matmul(self.row_ones, col_pos, transpose_b=True)
-        col_pos = tf.reshape(col_pos, (-1,))
-
+        row_pos, col_pos = (
+            (self.row_train_pos, self.col_train_pos) if training else (self.row_eval_pos, self.col_eval_pos)
+        )
         # > Once row and column position encoding are retrieved from the embedding table,
         # > they are added onto the token embedding produced by the resnet embedding function.
         return inputs + self.row_embedding(row_pos) + self.col_embedding(col_pos)
