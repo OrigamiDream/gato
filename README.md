@@ -1,4 +1,4 @@
-# Unofficial Gato: A Generalist Agent
+<h1 align="center">Unofficial Gato: A Generalist Agent</h1>
 
 [[Deepmind Publication]](https://www.deepmind.com/publications/a-generalist-agent)
 [[arXiv Paper]](https://arxiv.org/pdf/2205.06175.pdf)
@@ -26,6 +26,13 @@ But, you can still explore the basic architecture of the Gato based on the paper
 
 
 ## Paper Reviews
+
+### Full Episode Sequence
+
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/5837620/175756389-31d183c9-054e-4829-93a6-df79781ca212.png">
+    <img alt="gato dataset architecture" src="https://user-images.githubusercontent.com/5837620/175756409-75605dbc-7756-4509-ba93-c0ad08eea309.png">
+</picture>
 
 ### Architecture Variants
 
