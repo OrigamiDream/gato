@@ -1,5 +1,5 @@
 from gato.models.transformer import TransformerBlock, PoolerOutput
-from gato.models.embedding import PatchPositionEncoding, ResidualEmbedding, LocalPositionEncoding
+from gato.models.embedding import PatchPositionEncoding, ResidualEmbedding, LocalPositionEncoding, DiscreteEmbedding
 from gato.models.tokenizers import ContinuousValueTokenizer
 
 from tensorflow.keras import layers, models
@@ -14,7 +14,7 @@ class GatoTransformer(models.Model):
             config = GatoConfig(**config)
         self.config = config
 
-        inputs = layers.Input(shape=(config.embedding_input_size, config.layer_width), name='inputs')
+        inputs = layers.Input(shape=(None, config.layer_width), name='inputs')
         x = inputs
         for idx in range(self.config.num_transformer_blocks):
             x = TransformerBlock(config=self.config,

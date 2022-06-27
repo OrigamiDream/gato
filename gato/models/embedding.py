@@ -230,16 +230,47 @@ class LocalPositionEncoding(layers.Layer):
         self.embedding = None
 
     def build(self, input_shape):
-        self.embedding = layers.Embedding(self.config.local_position_encoding_size, self.config.layer_width)
+        self.embedding = layers.Embedding(self.config.token_sequence_length, self.config.layer_width)
         self.built = True
 
     def call(self, inputs, *args, **kwargs):
-        input_size = inputs.shape[1]
-        pos = tf.range(input_size, dtype=tf.int32)
+        input_size = tf.shape(inputs)[1]
+        pos = tf.range(start=0, limit=input_size, dtype=tf.int32)
         return inputs + self.embedding(pos)
 
     def get_config(self):
         config = super(LocalPositionEncoding, self).get_config()
+        config.update({
+            'config': self.config.to_dict()
+        })
+        return config
+
+
+class DiscreteEmbedding(layers.Layer):
+
+    def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable=True, name=None, *args, **kwargs):
+        super(DiscreteEmbedding, self).__init__(trainable=trainable, name=name, *args, **kwargs)
+
+        if isinstance(config, dict):
+            config = GatoConfig(**config)
+        self.config = config
+
+        self.embedding = None
+
+    def build(self, input_shape):
+        # Appendix C.1. Transformer Hyperparameters
+        # Shared Embedding
+        with tf.name_scope('discrete_shared_embedding'):
+            self.embedding = layers.Embedding(self.config.embedding_input_size,
+                                              self.config.layer_width,
+                                              name='discrete_embedding')
+        self.built = True
+
+    def call(self, inputs, *args, **kwargs):
+        return self.embedding(inputs)
+
+    def get_config(self):
+        config = super(DiscreteEmbedding, self).get_config()
         config.update({
             'config': self.config.to_dict()
         })
