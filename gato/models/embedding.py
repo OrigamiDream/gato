@@ -150,8 +150,8 @@ class ResidualEmbedding(layers.Layer):
         if conv_residual:
             residual = layers.Conv2D(4 * filters, 1, strides=stride, name='{}_residual_conv'.format(name))(preact)
         else:
-            residual = layers.MaxPooling2D(1, strides=stride, name='{}_residual_pool'.format(name))(
-                x) if stride > 1 else x
+            residual = layers.MaxPooling2D(1, strides=stride,
+                                           name='{}_residual_pool'.format(name))(x) if stride > 1 else x
 
         x = layers.Conv2D(filters, 1, strides=1, use_bias=False, name='{}_0_conv'.format(name))(preact)
 
