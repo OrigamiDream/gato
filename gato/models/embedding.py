@@ -3,7 +3,7 @@ import math
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-from tensorflow.keras import layers, regularizers, activations
+from tensorflow.keras import layers, regularizers, activations, models
 from gato import GatoConfig
 from typing import Dict, Any, Union
 
@@ -138,6 +138,7 @@ class ResidualEmbedding(layers.Layer):
             config = GatoConfig(**config)
         self.config = config
         self.num_blocks = 0
+        self.downsampling_convolution = None
 
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
@@ -154,59 +155,62 @@ class ResidualEmbedding(layers.Layer):
         )
         self.num_blocks = min(num_h_pools, num_w_pools) + 1
 
-        self.built = True
-
-    def call(self, inputs, *args, **kwargs):
-        def _conv_block(num_filters, kernel_size, strides=(1, 1), name=None):
-            return layers.Conv2D(filters=num_filters,
-                                 kernel_size=kernel_size,
-                                 strides=strides,
-                                 padding='same',
-                                 kernel_initializer='he_normal',
-                                 kernel_regularizer=regularizers.L2(l2=1e-4),
-                                 use_bias=False,
-                                 name=name)
-
-        def _norm_activation_block(conv, index, block_id):
-            conv = tfa.layers.GroupNormalization(groups=32,
-                                                 name='conv{}_block{}_preact_gn'.format(index, block_id))(conv)
-            conv = layers.Lambda(lambda v: activations.gelu(v),
-                                 name='conv{}_block{}_preact_gelu'.format(index, block_id))(conv)
-            return conv
-
-        x = _conv_block(32, kernel_size=(3, 3), strides=(1, 1), name='conv0_conv')(inputs)
+        inputs = layers.Input(shape=(h, w, input_shape[-1]), name='downsampling_conv_inputs')
+        x = self._conv_block(32, kernel_size=(3, 3), strides=(1, 1), name='downsampling_init')(inputs)
         for conv_id in range(self.num_blocks):
             conv_id += 1
             filters = conv_id * 128  # from 128
             stride_size = (1, 1) if conv_id == 1 else (2, 2)
 
             # Appendix C.2. Embedding Function
-            x = _norm_activation_block(x, conv_id, 1)
-            residual = _conv_block(filters,
-                                   kernel_size=(1, 1),
-                                   strides=stride_size,
-                                   name='conv{}_residual'.format(conv_id))(x)
+            x = self._norm_activation_block(x, conv_id, 1)
+            residual = self._conv_block(filters,
+                                        kernel_size=(1, 1),
+                                        strides=stride_size,
+                                        name='downsampling{}_residual'.format(conv_id))(x)
             # Block 1
-            x = _conv_block(filters // 4,
-                            kernel_size=(1, 1),
-                            name='conv{}_block1_conv'.format(conv_id))(x)
+            x = self._conv_block(filters // 4,
+                                 kernel_size=(1, 1),
+                                 name='downsampling{}_block1_conv'.format(conv_id))(x)
 
             # Block 2
-            x = _norm_activation_block(x, conv_id, 2)
-            x = _conv_block(filters // 4,
-                            kernel_size=(3, 3),
-                            strides=stride_size,
-                            name='conv{}_block2_conv'.format(conv_id))(x)
+            x = self._norm_activation_block(x, conv_id, 2)
+            x = self._conv_block(filters // 4,
+                                 kernel_size=(3, 3),
+                                 strides=stride_size,
+                                 name='downsampling{}_block2_conv'.format(conv_id))(x)
 
             # Block 3
-            x = _norm_activation_block(x, conv_id, 3)
-            x = _conv_block(filters,
-                            kernel_size=(1, 1),
-                            name='conv{}_block3_conv'.format(conv_id))(x)
+            x = self._norm_activation_block(x, conv_id, 3)
+            x = self._conv_block(filters,
+                                 kernel_size=(1, 1),
+                                 name='downsampling{}_block3_conv'.format(conv_id))(x)
 
             # Residual connection
             x = x + residual
-        return x
+
+        self.downsampling_convolution = models.Model(inputs=inputs, outputs=x, name='downsampling_convolution')
+        self.built = True
+
+    def _conv_block(self, num_filters, kernel_size, strides=(1, 1), name=None):
+        return layers.Conv2D(filters=num_filters,
+                             kernel_size=kernel_size,
+                             strides=strides,
+                             padding='same',
+                             kernel_initializer='he_normal',
+                             kernel_regularizer=regularizers.L2(l2=1e-4),
+                             use_bias=False,
+                             name=name)
+
+    def _norm_activation_block(self, conv, index, block_id):
+        conv = tfa.layers.GroupNormalization(groups=32,
+                                             name='downsampling{}_block{}_preact_gn'.format(index, block_id))(conv)
+        conv = layers.Lambda(lambda v: activations.gelu(v),
+                             name='downsampling{}_block{}_preact_gelu'.format(index, block_id))(conv)
+        return conv
+
+    def call(self, inputs, *args, **kwargs):
+        return self.downsampling_convolution(inputs)
 
     def get_config(self):
         config = super(ResidualEmbedding, self).get_config()
