@@ -12,9 +12,9 @@ Currently, the repository supports the following operations:
 - Transformer (via [`GatoTransformer`](https://github.com/OrigamiDream/gato/blob/main/gato/models/__init__.py#L10))
 - Patch Position Encodings (via [`PatchPositionEncoding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L42))
 - Embedding Function (via [`ResidualEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L129))
-- Local Observation Position Encodings (via [`LocalPositionEncoding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L219))
+- Local Observation Position Encodings (via [`LocalPositionEncoding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L244))
 - Tokenizing Continuous Values (via [`ContinuousValueTokenizer`](https://github.com/OrigamiDream/gato/blob/main/gato/models/tokenizers.py#L30))
-- Shared Embedding (via [`DiscreteEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L249))
+- Shared Embedding (via [`DiscreteEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L274))
 
 Action tokens are still a mystery in the paper, I need your help.
 
@@ -58,8 +58,10 @@ I have named them as `large()`, `baseline()` and `small()` respectively in `Gato
 There are no mentions that how many residual networks must be stacked for token embeddings.<br>
 Therefore, I remain configurable in `GatoConfig`.
 
+Whatever how many residual layers are existing, full-preactivation is a key.
+
 The blocks are consisted of:
-- V2 ResNet architecture (ResNet1001)
+- Version 2 ResNet architecture (based on ResNet50V2)
 - GroupNorm (instead of LayerNorm)
 - GeLU (instead of ReLU)
 
