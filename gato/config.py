@@ -53,6 +53,9 @@ class GatoConfig:
         # Appendix E. Regularization
         self.dropout_rate = kwargs.pop('dropout_rate', 0.1)
 
+        # Appendix C.2. Embedding Function
+        self.num_group_norm_groups = kwargs.pop('num_group_norm_groups', 32)
+
         # Appendix C.3. Position Encodings > Patch Position Encodings
         self.discretize_depth = kwargs.pop('discretize_depth', 128)
         # Appendix C.3. Position Encodings > Local Observation Position Encodings

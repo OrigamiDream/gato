@@ -137,8 +137,50 @@ class ResidualEmbedding(layers.Layer):
         if isinstance(config, dict):
             config = GatoConfig(**config)
         self.config = config
-        self.num_blocks = 0
         self.downsampling_convolution = None
+
+    def block_v2(self, x, filters, kernel_size=3, stride=1, conv_residual=False, name=None):
+        # Appendix C.2. Embedding Function
+        preact = tfa.layers.GroupNormalization(groups=self.config.num_group_norm_groups,
+                                               axis=-1,
+                                               epsilon=1.001e-5,
+                                               name='{}_preact_gn'.format(name))(x)
+        preact = layers.Activation('gelu', name='{}_preact_gelu'.format(name))(preact)
+
+        if conv_residual:
+            residual = layers.Conv2D(4 * filters, 1, strides=stride, name='{}_residual_conv'.format(name))(preact)
+        else:
+            residual = layers.MaxPooling2D(1, strides=stride, name='{}_residual_pool'.format(name))(
+                x) if stride > 1 else x
+
+        x = layers.Conv2D(filters, 1, strides=1, use_bias=False, name='{}_0_conv'.format(name))(preact)
+
+        # Block 1
+        x = tfa.layers.GroupNormalization(groups=self.config.num_group_norm_groups,
+                                          axis=-1,
+                                          epsilon=1.001e-5,
+                                          name='{}_1_gn'.format(name))(x)
+        x = layers.Activation('gelu', name='{}_1_gelu'.format(name))(x)
+        x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name='{}_1_pad'.format(name))(x)
+        x = layers.Conv2D(filters, kernel_size, strides=stride, use_bias=False, name='{}_1_conv'.format(name))(x)
+
+        # Block 2
+        x = tfa.layers.GroupNormalization(groups=self.config.num_group_norm_groups,
+                                          axis=-1,
+                                          epsilon=1.001e-5,
+                                          name='{}_2_gn'.format(name))(x)
+        x = layers.Activation('gelu', name='{}_2_gelu'.format(name))(x)
+        x = layers.Conv2D(4 * filters, 1, name='{}_2_conv'.format(name))(x)
+
+        x = layers.Add(name=name + '_add')([residual, x])
+        return x
+
+    def stack_v2(self, x, filters, num_blocks, stride=2, name=None):
+        x = self.block_v2(x, filters, conv_residual=True, name='{}_block1'.format(name))
+        for i in range(2, num_blocks):
+            x = self.block_v2(x, filters, name='{}_block{}'.format(name, i))
+        x = self.block_v2(x, filters, stride=stride, name='{}_block{}'.format(name, num_blocks))
+        return x
 
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
@@ -153,61 +195,40 @@ class ResidualEmbedding(layers.Layer):
         assert num_h_pools == num_w_pools, (
             'Number of the downsampling blocks must be same (H:{} != W:{})'.format(num_h_pools, num_w_pools)
         )
-        self.num_blocks = min(num_h_pools, num_w_pools) + 1
+        inputs = layers.Input(shape=(h, w, input_shape[-1]), name='downsampling_inputs')
 
-        inputs = layers.Input(shape=(h, w, input_shape[-1]), name='downsampling_conv_inputs')
-        x = self._conv_block(32, kernel_size=(3, 3), strides=(1, 1), name='downsampling_init')(inputs)
-        for conv_id in range(self.num_blocks):
-            conv_id += 1
-            filters = conv_id * 128  # from 128
-            stride_size = (1, 1) if conv_id == 1 else (2, 2)
+        # ResNet50V2 (BatchNorm → GroupNorm, ReLU → GeLU)
+        x = layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name='conv1_pad')(inputs)
+        x = layers.Conv2D(64, 7, strides=2, use_bias=True, name='conv1_conv')(x)
+        x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name='pool1_pad')(x)
+        x = layers.MaxPooling2D(3, strides=2, name='pool1_pool')(x)
 
-            # Appendix C.2. Embedding Function
-            x = self._norm_activation_block(x, conv_id, 1)
-            residual = self._conv_block(filters,
-                                        kernel_size=(1, 1),
-                                        strides=stride_size,
-                                        name='downsampling{}_residual'.format(conv_id))(x)
-            # Block 1
-            x = self._conv_block(filters // 4,
-                                 kernel_size=(1, 1),
-                                 name='downsampling{}_block1_conv'.format(conv_id))(x)
+        x = self.stack_v2(x, 64, 3, name='conv2')
+        x = self.stack_v2(x, 128, 4, name='conv3')
+        x = self.stack_v2(x, 256, 6, name='conv4')
+        x = self.stack_v2(x, 512, 3, stride=1, name='conv5')
 
-            # Block 2
-            x = self._norm_activation_block(x, conv_id, 2)
-            x = self._conv_block(filters // 4,
-                                 kernel_size=(3, 3),
-                                 strides=stride_size,
-                                 name='downsampling{}_block2_conv'.format(conv_id))(x)
+        model = models.Model(inputs=inputs, outputs=x, name='downsampling_convolution')
 
-            # Block 3
-            x = self._norm_activation_block(x, conv_id, 3)
-            x = self._conv_block(filters,
-                                 kernel_size=(1, 1),
-                                 name='downsampling{}_block3_conv'.format(conv_id))(x)
+        current_shape = (h, w)
+        current_layer_name = None
+        for layer in model.layers:
+            if 'preact_gn' not in layer.name:
+                continue
 
-            # Residual connection
-            x = x + residual
+            current_h, current_w = layer.output.shape[1:3]
+            is_desired_shape = current_shape[0] == num_h_patches and current_shape[1] == num_w_patches
+            is_smaller_shape = current_h < num_h_patches and current_w < num_w_patches
+            if is_desired_shape and is_smaller_shape:
+                break
 
-        self.downsampling_convolution = models.Model(inputs=inputs, outputs=x, name='downsampling_convolution')
+            current_layer_name = layer.name
+            current_shape = (current_h, current_w)
+
+        self.downsampling_convolution = models.Model(inputs=inputs,
+                                                     outputs=model.get_layer(name=current_layer_name).output,
+                                                     name='downsampling_convolution')
         self.built = True
-
-    def _conv_block(self, num_filters, kernel_size, strides=(1, 1), name=None):
-        return layers.Conv2D(filters=num_filters,
-                             kernel_size=kernel_size,
-                             strides=strides,
-                             padding='same',
-                             kernel_initializer='he_normal',
-                             kernel_regularizer=regularizers.L2(l2=1e-4),
-                             use_bias=False,
-                             name=name)
-
-    def _norm_activation_block(self, conv, index, block_id):
-        conv = tfa.layers.GroupNormalization(groups=32,
-                                             name='downsampling{}_block{}_preact_gn'.format(index, block_id))(conv)
-        conv = layers.Lambda(lambda v: activations.gelu(v),
-                             name='downsampling{}_block{}_preact_gelu'.format(index, block_id))(conv)
-        return conv
 
     def call(self, inputs, *args, **kwargs):
         return self.downsampling_convolution(inputs)
