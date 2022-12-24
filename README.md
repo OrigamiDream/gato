@@ -65,8 +65,6 @@ The blocks are consisted of:
 - GroupNorm (instead of LayerNorm)
 - GeLU (instead of ReLU)
 
-Since the GroupNorm is not supported in TensorFlow, you need to install `tensorflow-addons`.
-
 ### Position Encodings
 
 > Appendix C.3. Position Encodings
@@ -119,7 +117,7 @@ When Gato receives those values, they must be encoded with their own (local) tim
 ## Requirements
 
 ```bash
-pip install tensorflow tensorflow-addons
+pip install tensorflow>=2.11.0
 ```
 
 ## Contributing
