@@ -9,7 +9,10 @@ from typing import Dict, Any, Union
 
 class GatoTransformer(models.Model):
 
-    def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable: bool = True, name: str = 'gato_transformer'):
+    def __init__(self,
+                 config: Union[GatoConfig, Dict[str, Any]],
+                 trainable: bool = True,
+                 name: str = 'gato_transformer'):
         if isinstance(config, dict):
             config = GatoConfig(**config)
         self.config = config
