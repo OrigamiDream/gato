@@ -1,9 +1,8 @@
 import math
 
 import tensorflow as tf
-import tensorflow_addons as tfa
 
-from tensorflow.keras import layers, regularizers, activations, models
+from tensorflow.keras import layers, models
 from gato import GatoConfig
 from typing import Dict, Any, Union
 
@@ -141,10 +140,10 @@ class ResidualEmbedding(layers.Layer):
 
     def block_v2(self, x, filters, kernel_size=3, stride=1, conv_residual=False, name=None):
         # Appendix C.2. Embedding Function
-        preact = tfa.layers.GroupNormalization(groups=self.config.num_group_norm_groups,
-                                               axis=-1,
-                                               epsilon=1.001e-5,
-                                               name='{}_preact_gn'.format(name))(x)
+        preact = layers.GroupNormalization(groups=self.config.num_group_norm_groups,
+                                           axis=-1,
+                                           epsilon=1.001e-5,
+                                           name='{}_preact_gn'.format(name))(x)
         preact = layers.Activation('gelu', name='{}_preact_gelu'.format(name))(preact)
 
         if conv_residual:
@@ -156,19 +155,19 @@ class ResidualEmbedding(layers.Layer):
         x = layers.Conv2D(filters, 1, strides=1, use_bias=False, name='{}_0_conv'.format(name))(preact)
 
         # Block 1
-        x = tfa.layers.GroupNormalization(groups=self.config.num_group_norm_groups,
-                                          axis=-1,
-                                          epsilon=1.001e-5,
-                                          name='{}_1_gn'.format(name))(x)
+        x = layers.GroupNormalization(groups=self.config.num_group_norm_groups,
+                                      axis=-1,
+                                      epsilon=1.001e-5,
+                                      name='{}_1_gn'.format(name))(x)
         x = layers.Activation('gelu', name='{}_1_gelu'.format(name))(x)
         x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name='{}_1_pad'.format(name))(x)
         x = layers.Conv2D(filters, kernel_size, strides=stride, use_bias=False, name='{}_1_conv'.format(name))(x)
 
         # Block 2
-        x = tfa.layers.GroupNormalization(groups=self.config.num_group_norm_groups,
-                                          axis=-1,
-                                          epsilon=1.001e-5,
-                                          name='{}_2_gn'.format(name))(x)
+        x = layers.GroupNormalization(groups=self.config.num_group_norm_groups,
+                                      axis=-1,
+                                      epsilon=1.001e-5,
+                                      name='{}_2_gn'.format(name))(x)
         x = layers.Activation('gelu', name='{}_2_gelu'.format(name))(x)
         x = layers.Conv2D(4 * filters, 1, name='{}_2_conv'.format(name))(x)
 
