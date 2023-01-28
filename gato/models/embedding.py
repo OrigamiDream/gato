@@ -1,5 +1,3 @@
-import math
-
 import tensorflow as tf
 
 from tensorflow.keras import layers, models
@@ -125,6 +123,44 @@ class PatchPositionEncoding(layers.Layer):
         return config
 
 
+class ResidualUnit(layers.Layer):
+
+    def __init__(self, num_groups: int, filters: int, trainable=True, name=None, *args, **kwargs):
+        super(ResidualUnit, self).__init__(trainable=trainable, name=name, *args, **kwargs)
+        self.num_groups = num_groups
+        self.filters = filters
+        self.gn1 = self.gn2 = None
+        self.conv1 = self.conv2 = None
+        self.conv_proj = self.gn_proj = None
+
+    def build(self, input_shape):
+        self.gn1 = layers.GroupNormalization(groups=self.num_groups, name='gn1')
+        self.gn2 = layers.GroupNormalization(groups=self.num_groups, name='gn2')
+        self.conv1 = layers.Conv2D(filters=self.filters // 2, kernel_size=(3, 3), strides=(1, 1),
+                                   use_bias=False, padding='same', name='conv1')
+        self.conv2 = layers.Conv2D(filters=self.filters, kernel_size=(3, 3), strides=(2, 2),
+                                   use_bias=False, padding='same', name='conv2')
+        self.conv_proj = layers.Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(2, 2),
+                                       use_bias=False, padding='same', name='conv_proj')
+        self.gn_proj = layers.GroupNormalization(groups=self.num_groups, name='gn_proj')
+
+    def call(self, inputs, *args, **kwargs):
+        # Supplementary Material B. Agent Data Tokenization Details; Figure 16
+        # > This block uses the v2 ResNet architecture, GroupNorm (instead of LayerNorm) normalization,
+        # > and GELU (instead RELU) activation functions.
+        x = inputs
+
+        residual = self.conv_proj(self.gn_proj(x))
+
+        x = tf.nn.gelu(self.gn1(x))
+        x = self.conv1(x)
+
+        x = tf.nn.gelu(self.gn2(x))
+        x = self.conv2(x)
+
+        return x + residual
+
+
 class ResidualEmbedding(layers.Layer):
 
     def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable=True, name=None, *args, **kwargs):
@@ -136,101 +172,66 @@ class ResidualEmbedding(layers.Layer):
         if isinstance(config, dict):
             config = GatoConfig(**config)
         self.config = config
-        self.downsampling_convolution = None
-
-    def block_v2(self, x, filters, kernel_size=3, stride=1, conv_residual=False, name=None):
-        # Appendix C.2. Embedding Function
-        preact = layers.GroupNormalization(groups=self.config.num_group_norm_groups,
-                                           axis=-1,
-                                           epsilon=1.001e-5,
-                                           name='{}_preact_gn'.format(name))(x)
-        preact = layers.Activation('gelu', name='{}_preact_gelu'.format(name))(preact)
-
-        if conv_residual:
-            residual = layers.Conv2D(4 * filters, 1, strides=stride, name='{}_residual_conv'.format(name))(preact)
-        else:
-            residual = layers.MaxPooling2D(1, strides=stride,
-                                           name='{}_residual_pool'.format(name))(x) if stride > 1 else x
-
-        x = layers.Conv2D(filters, 1, strides=1, use_bias=False, name='{}_0_conv'.format(name))(preact)
-
-        # Block 1
-        x = layers.GroupNormalization(groups=self.config.num_group_norm_groups,
-                                      axis=-1,
-                                      epsilon=1.001e-5,
-                                      name='{}_1_gn'.format(name))(x)
-        x = layers.Activation('gelu', name='{}_1_gelu'.format(name))(x)
-        x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name='{}_1_pad'.format(name))(x)
-        x = layers.Conv2D(filters, kernel_size, strides=stride, use_bias=False, name='{}_1_conv'.format(name))(x)
-
-        # Block 2
-        x = layers.GroupNormalization(groups=self.config.num_group_norm_groups,
-                                      axis=-1,
-                                      epsilon=1.001e-5,
-                                      name='{}_2_gn'.format(name))(x)
-        x = layers.Activation('gelu', name='{}_2_gelu'.format(name))(x)
-        x = layers.Conv2D(4 * filters, 1, name='{}_2_conv'.format(name))(x)
-
-        x = layers.Add(name=name + '_add')([residual, x])
-        return x
-
-    def stack_v2(self, x, filters, num_blocks, stride=2, name=None):
-        x = self.block_v2(x, filters, conv_residual=True, name='{}_block1'.format(name))
-        for i in range(2, num_blocks):
-            x = self.block_v2(x, filters, name='{}_block{}'.format(name, i))
-        x = self.block_v2(x, filters, stride=stride, name='{}_block{}'.format(name, num_blocks))
-        return x
+        self.root_conv = self.conv_proj = None
+        self.residual_units = None
+        self.num_patches = None
 
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
-        h, w = input_shape[1], input_shape[2]
+        patch_size = self.config.img_patch_size
+        h, w, c = input_shape[1:]
+        width = patch_size * patch_size * c
+        if width != self.config.layer_width:
+            self.conv_proj = layers.Conv2D(filters=self.config.layer_width,
+                                           kernel_size=(1, 1),
+                                           strides=(1, 1),
+                                           padding='same',
+                                           use_bias=False,
+                                           name='conv_proj')
+        self.num_patches = (h // self.config.img_patch_size) * (w // self.config.img_patch_size)
+        self.root_conv = models.Sequential([
+            layers.Conv2D(filters=96, kernel_size=(7, 7), strides=(2, 2),
+                          use_bias=False, padding='same', name='conv_root'),
+            layers.GroupNormalization(groups=self.config.num_group_norm_groups, name='gn_root'),
+            layers.Activation('gelu', name='act_root')
+        ])
+        self.residual_units = [ResidualUnit(num_groups=self.config.num_group_norm_groups,
+                                            filters=96 * 2 ** (i + 1),
+                                            name='residual_unit_{}'.format(i + 1))
+                               for i in range(3)]
 
-        num_h_patches = h // self.config.img_patch_size
-        num_w_patches = w // self.config.img_patch_size
-
-        num_h_pools = int(math.log2(h // num_h_patches))
-        num_w_pools = int(math.log2(w // num_w_patches))
-
-        assert num_h_pools == num_w_pools, (
-            'Number of the downsampling blocks must be same (H:{} != W:{})'.format(num_h_pools, num_w_pools)
+    def create_patches(self, inputs):
+        patch_size = self.config.img_patch_size
+        x = tf.image.extract_patches(
+            images=inputs,  # [B, H, W, C]
+            sizes=(1, patch_size, patch_size, 1),
+            strides=(1, patch_size, patch_size, 1),
+            rates=(1, 1, 1, 1),
+            padding='SAME'
         )
-        inputs = layers.Input(shape=(h, w, input_shape[-1]), name='downsampling_inputs')
-
-        # ResNet50V2 (BatchNorm → GroupNorm, ReLU → GeLU)
-        x = layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name='conv1_pad')(inputs)
-        x = layers.Conv2D(64, 7, strides=2, use_bias=True, name='conv1_conv')(x)
-        x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name='pool1_pad')(x)
-        x = layers.MaxPooling2D(3, strides=2, name='pool1_pool')(x)
-
-        x = self.stack_v2(x, 64, 3, name='conv2')
-        x = self.stack_v2(x, 128, 4, name='conv3')
-        x = self.stack_v2(x, 256, 6, name='conv4')
-        x = self.stack_v2(x, 512, 3, stride=1, name='conv5')
-
-        model = models.Model(inputs=inputs, outputs=x, name='downsampling_convolution')
-
-        current_shape = (h, w)
-        current_layer_name = None
-        for layer in model.layers:
-            if 'preact_gn' not in layer.name:
-                continue
-
-            current_h, current_w = layer.output.shape[1:3]
-            is_desired_shape = current_shape[0] == num_h_patches and current_shape[1] == num_w_patches
-            is_smaller_shape = current_h < num_h_patches and current_w < num_w_patches
-            if is_desired_shape and is_smaller_shape:
-                break
-
-            current_layer_name = layer.name
-            current_shape = (current_h, current_w)
-
-        self.downsampling_convolution = models.Model(inputs=inputs,
-                                                     outputs=model.get_layer(name=current_layer_name).output,
-                                                     name='downsampling_convolution')
-        self.built = True
+        x = tf.reshape(x, (-1, self.num_patches, patch_size, patch_size, inputs.shape[-1]))
+        return tf.stop_gradient(x)
 
     def call(self, inputs, *args, **kwargs):
-        return self.downsampling_convolution(inputs)
+        # Section 2.1 Tokenization.
+        # > Images are first transformed into sequences of non-overlapping
+        # > 16 x 16 patches in raster order, as done in ViT (Dosovitskiy et al., 2020)
+        x = self.create_patches(inputs)  # [B, patches, 16, 16, C]
+        x = self.root_conv(x)
+
+        # NOTE: Page 3-4, Section 2.2 Embedding input tokens and setting output targets
+        # > Tokens belonging to image patches for any time-step are embedded
+        # > using a single ResNet block to obtain a vector per patch.
+
+        # I don't think that transforming single 16x16 patch into feature map
+        # with depth 768 at once does not give advantages coming from inductive bias.
+        # This is currently discussing in issue #2
+        for block in self.residual_units:
+            x = block(x)
+        if self.conv_proj is not None:
+            x = self.conv_proj(x)
+        x = tf.reshape(x, shape=(-1, self.num_patches, self.config.layer_width))
+        return x
 
     def get_config(self):
         config = super(ResidualEmbedding, self).get_config()
