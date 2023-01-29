@@ -40,20 +40,20 @@ input_dim = config.input_dim
 input_ids = tf.concat([
   # ...
   # observation 1
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 0
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 1
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 2
+  tf.random.uniform((1, 1, input_dim)),  # image patch 0
+  tf.random.uniform((1, 1, input_dim)),  # image patch 1
+  tf.random.uniform((1, 1, input_dim)),  # image patch 2
   # ...
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 19
+  tf.random.uniform((1, 1, input_dim)),  # image patch 19
   tf.fill((1, 1, input_dim), value=0.25),  # continuous value
   tf.fill((1, 1, input_dim), value=624.0),  # discrete (actions, texts)
 
   # observation 2
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 0
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 1
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 2
+  tf.random.uniform((1, 1, input_dim)),  # image patch 0
+  tf.random.uniform((1, 1, input_dim)),  # image patch 1
+  tf.random.uniform((1, 1, input_dim)),  # image patch 2
   # ...
-  tf.random.uniform((1, 1, input_dim), minval=0, maxval=1),  # image patch 19
+  tf.random.uniform((1, 1, input_dim)),  # image patch 19
   tf.fill((1, 1, input_dim), value=0.12),  # continuous value
   tf.fill((1, 1, input_dim), value=295.0)  # discrete (actions, texts)
   # ...
