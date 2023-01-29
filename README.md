@@ -76,7 +76,6 @@ obs = (
   tf.constant([[ 0,  1,  2, 19, 20, 21,  0,  1,  2, 19, 20, 21]]),  # obs token
   tf.constant([[ 1,  1,  1,  1,  1,  0,  1,  1,  1,  1,  1,  0]])   # obs token masking (for action tokens)
 )
-# features = ([1, 12, input_dim], ([1, 12], ([1, 12], [1, 12]), ([1, 12], [1, 12]), ([1, 2], [1, 12])))
 hidden_states = gato((input_ids, (encoding, row_pos, col_pos), obs))
 ```
 ### Dataset and Model Architecture
