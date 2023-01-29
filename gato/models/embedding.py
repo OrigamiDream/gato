@@ -80,8 +80,8 @@ class PatchPositionEncoding(layers.Layer):
             col_pos = col_pos_from + _randomized_positions(col_pos_from, col_pos_to)
         else:
             # > During evaluation we deterministically take the (rounded) mean of the interval.
-            row_pos = row_pos_from + _rounded_mean_positions(row_pos_from, row_pos_to)
-            col_pos = col_pos_from + _rounded_mean_positions(col_pos_from, col_pos_to)
+            row_pos = _rounded_mean_positions(row_pos_from, row_pos_to)
+            col_pos = _rounded_mean_positions(col_pos_from, col_pos_to)
 
         col_pos = tf.cast(col_pos, dtype=tf.int32)
         row_pos = tf.cast(row_pos, dtype=tf.int32)
