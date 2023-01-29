@@ -16,7 +16,6 @@ def _rounded_mean_positions(from_v, to_v):
     pos = tf.cast(from_v + to_v, tf.float32)
     pos = pos / 2
     pos = tf.round(pos)
-    pos = tf.cast(pos, dtype=tf.int32)
     return pos
 
 
@@ -39,7 +38,6 @@ def _broadcast(row_pos, col_pos, row_ones, col_ones):
 class PatchPositionEncoding(layers.Layer):
 
     def __init__(self,
-                 embedding_dim, img_height, img_width,
                  config: Union[GatoConfig, Dict[str, Any]],
                  trainable=True, name=None, *args, **kwargs):
         """
@@ -51,73 +49,50 @@ class PatchPositionEncoding(layers.Layer):
             config = GatoConfig(**config)
         self.config = config
 
-        assert img_height % self.config.img_patch_size == 0, 'Height must be divided by patch size with no remainders'
-        assert img_width % self.config.img_patch_size == 0, 'Width must be divided by patch size with no remainders'
-
-        self.embedding_dim = embedding_dim
+        self.embedding_dim = self.config.layer_width
         self.discretize_depth = self.config.discretize_depth
-        self.height = img_height
-        self.width = img_width
         self.patch_size = self.config.img_patch_size
-
-        self.rows_from = self.rows_to = self.cols_from = self.cols_to = None
-        self.row_embedding = self.col_embedding = None
-        self.row_train_pos = self.col_train_pos = None
-        self.row_eval_pos = self.col_eval_pos = None
-
-    def _discretize(self, pos):
-        return round(pos * self.discretize_depth)
-
-    def _discretize_interval(self, axis_num):
-        axis_from = []
-        axis_to = []
-        for index in range(axis_num // self.patch_size):
-            from_pos = index * self.patch_size / axis_num
-            to_pos = (index + 1) * self.patch_size / axis_num
-            axis_from.append(self._discretize(from_pos))
-            axis_to.append(self._discretize(to_pos))
-        return axis_from, axis_to
-
-    def build(self, input_shape):
-        # Appendix C.3. Position Encodings; Figure 15 | Patch position encodings.
-        rows_from, rows_to = self._discretize_interval(self.height)
-        cols_from, cols_to = self._discretize_interval(self.width)
-
-        self.rows_from = tf.convert_to_tensor(rows_from, dtype=tf.int32)
-        self.rows_to = tf.convert_to_tensor(rows_to, dtype=tf.int32)
-        self.cols_from = tf.convert_to_tensor(cols_from, dtype=tf.int32)
-        self.cols_to = tf.convert_to_tensor(cols_to, dtype=tf.int32)
 
         self.row_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='row_embedding')
         self.col_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='col_embedding')
 
-        row_ones = tf.ones(shape=(self.height // self.patch_size, 1), dtype=tf.int32)
-        col_ones = tf.ones(shape=(self.width // self.patch_size, 1), dtype=tf.int32)
+    def _discretize(self, pos):
+        return tf.round(pos * self.discretize_depth)
 
-        # > During training a random index is uniformly sampled from the quantized interval.
-        self.row_train_pos, self.col_train_pos = _broadcast(self.rows_from + _randomized_positions(self.rows_from, self.rows_to),
-                                                            self.cols_from + _randomized_positions(self.cols_from, self.cols_to),
-                                                            row_ones, col_ones)
-        # > During evaluation we deterministically take the (rounded) mean of the interval.
-        self.row_eval_pos, self.col_eval_pos = _broadcast(_rounded_mean_positions(self.rows_from, self.rows_to),
-                                                          _rounded_mean_positions(self.cols_from, self.cols_to),
-                                                          row_ones, col_ones)
-        self.built = True
+    def _discretize_interval(self, interval):
+        pos_from, pos_to = interval
+        return self._discretize(pos_from), self._discretize(pos_to)
 
     def call(self, inputs, *args, **kwargs):
-        # Appendix C.3. Position Encodings
+        # Appendix C.3. Position Encodings; Figure 15 | Patch position encodings.
         training = kwargs['training'] if 'training' in kwargs else False
-        row_pos, col_pos = (
-            (self.row_train_pos, self.col_train_pos) if training else (self.row_eval_pos, self.col_eval_pos)
-        )
+        # input_ids must already be embedded by the resnet embedding function.
+        # row_pos and col_pos must be intervals which is tuple of (pos_from, pos_to)
+        # row_pos and col_pos must be normalized between [0, 1] to show their relativity.
+        input_ids, (row_pos, col_pos) = inputs
+
+        row_pos_from, row_pos_to = self._discretize_interval(row_pos)
+        col_pos_from, col_pos_to = self._discretize_interval(col_pos)
+
+        if training:
+            # > During training a random index is uniformly sampled from the quantized interval.
+            row_pos = row_pos_from + _randomized_positions(row_pos_from, row_pos_to)
+            col_pos = col_pos_from + _randomized_positions(col_pos_from, col_pos_to)
+        else:
+            # > During evaluation we deterministically take the (rounded) mean of the interval.
+            row_pos = row_pos_from + _rounded_mean_positions(row_pos_from, row_pos_to)
+            col_pos = col_pos_from + _rounded_mean_positions(col_pos_from, col_pos_to)
+
+        col_pos = tf.cast(col_pos, dtype=tf.int32)
+        row_pos = tf.cast(row_pos, dtype=tf.int32)
+
         # > Once row and column position encoding are retrieved from the embedding table,
         # > they are added onto the token embedding produced by the resnet embedding function.
-        return inputs + self.row_embedding(row_pos) + self.col_embedding(col_pos)
+        return input_ids + self.row_embedding(row_pos) + self.col_embedding(col_pos)
 
     def get_config(self):
         config = super(PatchPositionEncoding, self).get_config()
         config.update({
-            'embedding_dim': self.embedding_dim,
             'config': self.config.to_dict(),
         })
         return config
@@ -177,18 +152,13 @@ class ResidualEmbedding(layers.Layer):
         self.num_patches = None
 
     def build(self, input_shape):
-        input_shape = tf.TensorShape(input_shape)
-        patch_size = self.config.img_patch_size
-        h, w, c = input_shape[1:]
-        width = patch_size * patch_size * c
-        if width != self.config.layer_width:
+        if self.config.input_dim != self.config.layer_width:
             self.conv_proj = layers.Conv2D(filters=self.config.layer_width,
                                            kernel_size=(1, 1),
                                            strides=(1, 1),
                                            padding='same',
                                            use_bias=False,
                                            name='conv_proj')
-        self.num_patches = (h // self.config.img_patch_size) * (w // self.config.img_patch_size)
         self.root_conv = models.Sequential([
             layers.Conv2D(filters=96, kernel_size=(7, 7), strides=(2, 2),
                           use_bias=False, padding='same', name='conv_root'),
@@ -200,24 +170,9 @@ class ResidualEmbedding(layers.Layer):
                                             name='residual_unit_{}'.format(i + 1))
                                for i in range(3)]
 
-    def create_patches(self, inputs):
-        patch_size = self.config.img_patch_size
-        x = tf.image.extract_patches(
-            images=inputs,  # [B, H, W, C]
-            sizes=(1, patch_size, patch_size, 1),
-            strides=(1, patch_size, patch_size, 1),
-            rates=(1, 1, 1, 1),
-            padding='SAME'
-        )
-        x = tf.reshape(x, (-1, self.num_patches, patch_size, patch_size, inputs.shape[-1]))
-        return tf.stop_gradient(x)
-
     def call(self, inputs, *args, **kwargs):
         # Section 2.1 Tokenization.
-        # > Images are first transformed into sequences of non-overlapping
-        # > 16 x 16 patches in raster order, as done in ViT (Dosovitskiy et al., 2020)
-        x = self.create_patches(inputs)  # [B, patches, 16, 16, C]
-        x = self.root_conv(x)
+        x = self.root_conv(inputs)
 
         # NOTE: Page 3-4, Section 2.2 Embedding input tokens and setting output targets
         # > Tokens belonging to image patches for any time-step are embedded
@@ -230,7 +185,7 @@ class ResidualEmbedding(layers.Layer):
             x = block(x)
         if self.conv_proj is not None:
             x = self.conv_proj(x)
-        x = tf.reshape(x, shape=(-1, self.num_patches, self.config.layer_width))
+        x = tf.reshape(x, shape=(-1, inputs.shape[1], self.config.layer_width))
         return x
 
     def get_config(self):
@@ -259,9 +214,17 @@ class LocalPositionEncoding(layers.Layer):
         self.built = True
 
     def call(self, inputs, *args, **kwargs):
-        input_size = tf.shape(inputs)[1]
-        pos = tf.range(start=0, limit=input_size, dtype=tf.int32)
-        return inputs + self.embedding(pos)
+        # Appendix C.3. Position Encodings > Local Observation Position Encodings; Figure 18 | Local position encodings.
+        # > Note that no position encodings are added to action tokens.
+
+        # So I added `obs_mask` to mask the action token into zeros.
+        obs_pos, obs_mask = inputs
+        embed = self.embedding(obs_pos)
+
+        ones = tf.ones((embed.shape[0], 1, self.config.layer_width), dtype=tf.float32)
+        obs_mask = tf.cast(obs_mask, dtype=tf.float32)
+        obs_mask = tf.matmul(obs_mask, ones, transpose_a=True)
+        return embed * obs_mask
 
     def get_config(self):
         config = super(LocalPositionEncoding, self).get_config()
