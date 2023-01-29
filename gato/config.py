@@ -30,6 +30,7 @@ class GatoConfig:
                           key_value_size=32)
 
     def __init__(self, **kwargs):
+        self.input_dim = kwargs.pop('input_dim', 768)
         self.img_patch_size = kwargs.pop('img_patch_size', 16)
 
         # Section 2.3. Training
