@@ -20,11 +20,20 @@ Currently, the repository supports the following operations:
 Action tokens are still a mystery in the paper, I need your help.
 
 However, the repository lacks the following miscellaneous.
-- Datasets (most important)
-- Pre-trained tokenizers
-- Training strategy
+- Datasets (most important, Issue: [#1](https://github.com/OrigamiDream/gato/issues/1), [ThomasRochefortB/torch-gato](https://github.com/ThomasRochefortB/torch-gato/blob/main/datasets/README.md))
+- Pre-trained tokenizers (No longer required because of E2E model)
+- Training strategy (E2E)
 
 But, you can still explore the basic architecture of the Gato based on the paper.
+
+### Usage
+```python
+from gato import Gato, GatoConfig
+
+config = GatoConfig.small()
+gato = Gato(config)
+hidden_states = gato((input_ids, (encoding, (row_pos_from, row_pos_to), (col_pos_from, col_pos_to)), (obs_pos, obs_mask)))
+```
 
 
 ## Paper Reviews
