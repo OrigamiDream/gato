@@ -79,7 +79,11 @@ obs = (
 # features = ([1, 12, input_dim], ([1, 12], ([1, 12], [1, 12]), ([1, 12], [1, 12]), ([1, 2], [1, 12])))
 hidden_states = gato((input_ids, (encoding, row_pos, col_pos), obs))
 ```
-
+### Dataset and Model Architecture
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/5837620/215323793-7f7bcfdb-d8be-40d3-8e58-a053511f95d5.png">
+  <img alt="gato dataset and model architecture" src="https://user-images.githubusercontent.com/5837620/215323795-3a433516-f5ca-4272-9999-3df87ae521ba.png">
+</picture>
 
 ## Paper Reviews
 
