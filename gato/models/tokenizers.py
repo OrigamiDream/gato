@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from gato import GatoConfig
-from tensorflow.keras import layers, models
+from tensorflow.keras import models
 from typing import Union, Dict, Any
 
 
@@ -32,18 +32,17 @@ class ContinuousValueTokenizer(models.Model):
     def __init__(self,
                  config: Union[GatoConfig, Dict[str, Any]],
                  mu=100, m=256, bins=1024,
-                 trainable=False, name='continuous_value_tokenizer'):
+                 trainable=False, name=None, **kwargs):
+        super(ContinuousValueTokenizer, self).__init__(trainable=trainable, name=name, **kwargs)
         if isinstance(config, dict):
             config = GatoConfig(**config)
         self.config = config
-
-        inputs = layers.Input(shape=(None,), name='inputs')
-        outputs = tokenize_continuous_values(inputs, mu, m, bins, shift=config.vocabulary_size)
-
-        super(ContinuousValueTokenizer, self).__init__(inputs=inputs, outputs=outputs, trainable=trainable, name=name)
+        self.mu = mu
+        self.m = m
+        self.bins = bins
 
     def call(self, inputs, training=None, mask=None):
-        return super(ContinuousValueTokenizer, self).call(inputs, training, mask)
+        return tokenize_continuous_values(inputs, self.mu, self.m, self.bins, shift=self.config.vocabulary_size)
 
     def get_config(self):
         return super(ContinuousValueTokenizer, self).get_config()
