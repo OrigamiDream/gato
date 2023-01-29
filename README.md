@@ -59,6 +59,9 @@ input_ids = tf.concat([
   # ...
 ], axis=1)
 encoding = tf.constant([
+  # 0 - image patch embedding
+  # 1 - continuous value embedding
+  # 2 - discrete embedding (actions, texts)
   [0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 2]
 ])
 row_pos = (
