@@ -27,6 +27,9 @@ However, the repository lacks the following miscellaneous.
 But, you can still explore the basic architecture of the Gato based on the paper.
 
 ### Usage
+```bash
+$ pip install gato-tf
+```
 ```python
 import tensorflow as tf
 from gato import Gato, GatoConfig
