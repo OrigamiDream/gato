@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='gato-tf',
-    version='0.0.1',
+    version='0.0.2',
     description='Unofficial Gato: A Generalist Agent',
     url='https://github.com/OrigamiDream/gato.git',
     author='OrigamiDream',
