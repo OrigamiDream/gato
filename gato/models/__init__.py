@@ -36,15 +36,15 @@ class Gato(models.Model):
 
         ones = tf.ones((input_ids.shape[0], 1, self.config.layer_width), dtype=tf.float32)
         image_embed = self.image_embedding((input_ids, (row_pos, col_pos)), training=training)
-        image_embed *= tf.matmul(encoding[..., 0], ones, transpose_a=True)  # image patch masking
+        image_embed *= encoding[..., 0].transpose().matmul(ones)  # image patch masking
 
         # continuous value takes from first value of input_ids
         continuous_embed = self.continuous_encoding(input_ids[..., 0])
         continuous_embed = self.discrete_embedding(continuous_embed)
-        continuous_embed *= tf.matmul(encoding[..., 1], ones, transpose_a=True)  # continuous value masking
+        continuous_embed *= encoding[..., 1].transpose().matmul(ones)  # continuous value masking
 
         discrete_embed = self.discrete_embedding(input_ids[..., 0])
-        discrete_embed *= tf.matmul(encoding[..., 2], ones, transpose_a=True)  # discrete value masking
+        discrete_embed *= encoding[..., 2].transpose().matmul(ones)  # discrete value masking
 
         # Appendix C.3. Position Encodings > Local Observation Position Encodings
         # add local observation position encodings
@@ -101,7 +101,7 @@ class PatchEmbedding(models.Model):
         patch_size = self.config.img_patch_size
         depth = self.config.input_dim // (patch_size * patch_size)
 
-        x = tf.reshape(input_ids, (-1, input_ids.shape[1], patch_size, patch_size, depth))
+        x = input_ids.reshape((-1, input_ids.shape[1], patch_size, patch_size, depth))
         x = self.residual_embedding(x)
         x = self.pos_encoding((x, (row_pos, col_pos)))
         return x

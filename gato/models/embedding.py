@@ -7,32 +7,13 @@ from typing import Dict, Any, Union
 
 def _randomized_positions(from_v, to_v):
     pos = tf.random.uniform(from_v.shape, minval=0, maxval=1, dtype=tf.float32)
-    pos = pos * tf.cast(to_v - from_v, dtype=tf.float32)
-    pos = tf.cast(pos, dtype=tf.int32)
-    return pos
+    pos = pos * (to_v - from_v).cast(tf.float32)
+    return pos.cast(tf.int32)
 
 
 def _rounded_mean_positions(from_v, to_v):
-    pos = tf.cast(from_v + to_v, tf.float32)
-    pos = pos / 2
-    pos = tf.round(pos)
-    return pos
-
-
-def _broadcast(row_pos, col_pos, row_ones, col_ones):
-    # broadcast (5,) to (20,) with column-axis
-    row_pos = tf.expand_dims(row_pos, 1)
-    row_pos = tf.matmul(row_pos, col_ones, transpose_b=True)
-    row_pos = tf.reshape(row_pos, (-1,))
-    row_pos = tf.stop_gradient(row_pos)
-
-    # broadcast (4,) to (20,) with row-axis
-    col_pos = tf.expand_dims(col_pos, 1)
-    col_pos = tf.matmul(row_ones, col_pos, transpose_b=True)
-    col_pos = tf.reshape(col_pos, (-1,))
-    col_pos = tf.stop_gradient(col_pos)
-
-    return row_pos, col_pos
+    pos = (from_v + to_v).cast(tf.float32) / 2.
+    return pos.round()
 
 
 class PatchPositionEncoding(layers.Layer):
@@ -57,7 +38,7 @@ class PatchPositionEncoding(layers.Layer):
         self.col_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='col_embedding')
 
     def _discretize(self, pos):
-        return tf.round(pos * self.discretize_depth)
+        return (pos * self.discretize_depth).round()
 
     def _discretize_interval(self, interval):
         pos_from, pos_to = interval
@@ -83,12 +64,9 @@ class PatchPositionEncoding(layers.Layer):
             row_pos = _rounded_mean_positions(row_pos_from, row_pos_to)
             col_pos = _rounded_mean_positions(col_pos_from, col_pos_to)
 
-        col_pos = tf.cast(col_pos, dtype=tf.int32)
-        row_pos = tf.cast(row_pos, dtype=tf.int32)
-
         # > Once row and column position encoding are retrieved from the embedding table,
         # > they are added onto the token embedding produced by the resnet embedding function.
-        return input_ids + self.row_embedding(row_pos) + self.col_embedding(col_pos)
+        return input_ids + self.row_embedding(row_pos.cast(tf.int32)) + self.col_embedding(col_pos.cast(tf.int32))
 
     def get_config(self):
         config = super(PatchPositionEncoding, self).get_config()
@@ -127,10 +105,10 @@ class ResidualUnit(layers.Layer):
 
         residual = self.conv_proj(self.gn_proj(x))
 
-        x = tf.nn.gelu(self.gn1(x))
+        x = self.gn1(x).gelu()
         x = self.conv1(x)
 
-        x = tf.nn.gelu(self.gn2(x))
+        x = self.gn2(x).gelu()
         x = self.conv2(x)
 
         return x + residual
@@ -185,7 +163,7 @@ class ResidualEmbedding(layers.Layer):
             x = block(x)
         if self.conv_proj is not None:
             x = self.conv_proj(x)
-        x = tf.reshape(x, shape=(-1, inputs.shape[1], self.config.layer_width))
+        x = x.reshape((-1, inputs.shape[1], self.config.layer_width))
         return x
 
     def get_config(self):
@@ -222,8 +200,7 @@ class LocalPositionEncoding(layers.Layer):
         embed = self.embedding(obs_pos)
 
         ones = tf.ones((embed.shape[0], 1, self.config.layer_width), dtype=tf.float32)
-        obs_mask = tf.cast(obs_mask, dtype=tf.float32)
-        obs_mask = tf.matmul(obs_mask, ones, transpose_a=True)
+        obs_mask = obs_mask.cast(tf.float32).transpose().matmul(ones)
         return embed * obs_mask
 
     def get_config(self):

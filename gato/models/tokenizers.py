@@ -7,10 +7,9 @@ from typing import Union, Dict, Any
 
 def mu_law_encode(x, mu=100, m=256):
     # Appendix B. Agent Data Tokenization Details
-    sign = tf.math.sign(x)
-    numerator = tf.math.log(tf.abs(x) * mu + 1.0)
+    numerator = tf.math.log(x.abs() * mu + 1.0)
     denominator = tf.math.log(m * mu + 1.0)
-    return (numerator / denominator) * sign
+    return (numerator / denominator) * x.sign()
 
 
 def tokenize_continuous_values(x, mu=100, m=256, bins=1024, shift=None):
@@ -21,7 +20,7 @@ def tokenize_continuous_values(x, mu=100, m=256, bins=1024, shift=None):
     # > We use 1024 bins and shift the resulting integers
     # > so they are not overlapping with the ones used for text tokens.
     c = (c + 1) * (bins / 2)
-    c = tf.cast(c, tf.int32)
+    c = c.cast(tf.int32)
     if shift is not None:
         c += shift
     return c
