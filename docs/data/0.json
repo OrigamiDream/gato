@@ -1,0 +1,445 @@
+{
+    "0": {
+        "file_id": 0,
+        "content": "/README.md",
+        "type": "filepath"
+    },
+    "1": {
+        "file_id": 0,
+        "content": "This unofficial Gato implementation includes a Transformer and Embedding Function, is in development and requires datasets for training. It has variations in architecture including Residual Embedding layer and Vision Transformer-like position encodings, with TensorFlow 2.11.0 or higher needed to run the open-source project licensed under MIT.",
+        "type": "summary"
+    },
+    "2": {
+        "file_id": 0,
+        "content": "<h1 align=\"center\">Unofficial Gato: A Generalist Agent</h1>\n[[Deepmind Publication]](https://www.deepmind.com/publications/a-generalist-agent)\n[[arXiv Paper]](https://arxiv.org/pdf/2205.06175.pdf)\nThis repository contains Deepmind's Gato architecture imitation in TensorFlow.\nSince Deepmind only mentions parts of the architecture in its paper, We still don't know much about the model.<br>\nHowever, I believe the paper is enough to imitate the architecture, I'm trying to do that with the open source community's help.\nCurrently, the repository supports the following operations:\n- Gato (via [`Gato`](https://github.com/OrigamiDream/gato/blob/main/gato/models/__init__.py#L12))\n- Transformer (via [`Transformer`](https://github.com/OrigamiDream/gato/blob/main/gato/models/__init__.py#L61))\n- Patch Position Encodings (via [`PatchPositionEncoding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L38))\n- Embedding Function (via [`ResidualEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L139))",
+        "type": "code",
+        "location": "/README.md:1-15"
+    },
+    "3": {
+        "file_id": 0,
+        "content": "This README introduces an unofficial implementation of Gato, a generalist agent architecture by Deepmind. The code contains models like Gato, Transformer, Patch Position Encodings, and Embedding Function. The repository is still under development and supports the mentioned operations.",
+        "type": "comment"
+    },
+    "4": {
+        "file_id": 0,
+        "content": "- Local Observation Position Encodings (via [`LocalPositionEncoding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L199))\n- Tokenizing Continuous Values (via [`ContinuousValueTokenizer`](https://github.com/OrigamiDream/gato/blob/main/gato/models/tokenizers.py#L30))\n- Shared Embedding (via [`DiscreteEmbedding`](https://github.com/OrigamiDream/gato/blob/main/gato/models/embedding.py#L237))\nAction tokens are still a mystery in the paper, I need your help.\nHowever, the repository lacks the following miscellaneous.\n- Datasets (most important, Issue: [#1](https://github.com/OrigamiDream/gato/issues/1), [ThomasRochefortB/torch-gato](https://github.com/ThomasRochefortB/torch-gato/blob/main/datasets/README.md))\n- <s>Pre-trained tokenizers</s> (No longer required because of E2E model)\n- Training strategy (E2E, WIP)\nBut, you can still explore the basic architecture of the Gato based on the paper.\n### Usage\n```bash\n$ pip install gato-tf\n```\n```python\nimport tensorflow as tf\nfrom gato import Gato, GatoConfig",
+        "type": "code",
+        "location": "/README.md:16-35"
+    },
+    "5": {
+        "file_id": 0,
+        "content": "Code snippet from gato/README.md:\nThe code introduces the basic architecture of Gato, its tokenizing mechanisms, and embedding layers. It also mentions the lack of pre-trained tokenizers due to an E2E model, and the need for datasets which are still in development. The code provides installation instructions using pip and importing Gato module in TensorFlow.",
+        "type": "comment"
+    },
+    "6": {
+        "file_id": 0,
+        "content": "# Create model instance\nconfig = GatoConfig.small()\ngato = Gato(config)\n# Fake inputs for Gato\ninput_dim = config.input_dim\ninput_ids = tf.concat([\n  # ...\n  # observation 1\n  tf.random.uniform((1, 1, input_dim)),  # image patch 0\n  tf.random.uniform((1, 1, input_dim)),  # image patch 1\n  tf.random.uniform((1, 1, input_dim)),  # image patch 2\n  # ...\n  tf.random.uniform((1, 1, input_dim)),  # image patch 19\n  tf.fill((1, 1, input_dim), value=0.25),  # continuous value\n  tf.fill((1, 1, input_dim), value=624.0),  # discrete (actions, texts)\n  # observation 2\n  tf.random.uniform((1, 1, input_dim)),  # image patch 0\n  tf.random.uniform((1, 1, input_dim)),  # image patch 1\n  tf.random.uniform((1, 1, input_dim)),  # image patch 2\n  # ...\n  tf.random.uniform((1, 1, input_dim)),  # image patch 19\n  tf.fill((1, 1, input_dim), value=0.12),  # continuous value\n  tf.fill((1, 1, input_dim), value=295.0)  # discrete (actions, texts)\n  # ...\n], axis=1)\nencoding = tf.constant([\n  # 0 - image patch embedding\n  # 1 - continuous value embedding",
+        "type": "code",
+        "location": "/README.md:37-66"
+    },
+    "7": {
+        "file_id": 0,
+        "content": "Creates a Gato model instance using the provided configuration and generates fake inputs for the model. The inputs include 20 image patches, two continuous values, and two discrete (actions, texts) observations. Image patches have random uniform distributions while continuous and discrete values are filled with specific values. An embedding constant is created for different input types.",
+        "type": "comment"
+    },
+    "8": {
+        "file_id": 0,
+        "content": "  # 2 - discrete embedding (actions, texts)\n  [0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 2]\n])\nrow_pos = (\n  tf.constant([[0.00, 0.25, 0.50, 0.75, 0, 0, 0.00, 0.25, 0.50, 0.75, 0, 0]]),  # pos_from\n  tf.constant([[0.25, 0.50, 0.75, 1.00, 0, 0, 0.25, 0.50, 0.75, 1.00, 0, 0]])   # pos_to\n)\ncol_pos = (\n  tf.constant([[0.00, 0.00, 0.00, 0.80, 0, 0, 0.00, 0.00, 0.00, 0.80, 0, 0]]),  # pos_from\n  tf.constant([[0.20, 0.20, 0.20, 1.00, 0, 0, 0.20, 0.20, 0.20, 1.00, 0, 0]])   # pos_to\n)\nobs = (\n  tf.constant([[ 0,  1,  2, 19, 20, 21,  0,  1,  2, 19, 20, 21]]),  # obs token\n  tf.constant([[ 1,  1,  1,  1,  1,  0,  1,  1,  1,  1,  1,  0]])   # obs token masking (for action tokens)\n)\nhidden_states = gato((input_ids, (encoding, row_pos, col_pos), obs))\n```\n### Dataset and Model Architecture\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://user-images.githubusercontent.com/5837620/215323793-7f7bcfdb-d8be-40d3-8e58-a053511f95d5.png\">\n  <img alt=\"gato dataset and model architecture\" src=\"https://user-images.githubusercontent.com/5837620/215323795-3a433516-f5ca-4272-9999-3df87ae521ba.png\">",
+        "type": "code",
+        "location": "/README.md:67-87"
+    },
+    "9": {
+        "file_id": 0,
+        "content": "The code is initializing tensorflow constants for input ids, encoding, row positions, column positions, and observation tokens. It then passes these to the GATO model for hidden states calculation. The GATO model is a multi-modal transformer-based architecture for vision-language-task (VLT) understanding. The dataset consists of images with associated text descriptions which are fed into the model for prediction or task completion.",
+        "type": "comment"
+    },
+    "10": {
+        "file_id": 0,
+        "content": "</picture>\n## Paper Reviews\n### Full Episode Sequence\n<picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://user-images.githubusercontent.com/5837620/175756389-31d183c9-054e-4829-93a6-df79781ca212.png\">\n    <img alt=\"gato dataset architecture\" src=\"https://user-images.githubusercontent.com/5837620/175756409-75605dbc-7756-4509-ba93-c0ad08eea309.png\">\n</picture>\n### Architecture Variants\n> Appendix C.1. Transformer Hyperparameters\nIn the paper, Deepmind tested Gato with 3 architecture variants, `1.18B`, `364M`, and `79M`.<br>\nI have named them as `large()`, `baseline()` and `small()` respectively in `GatoConfig`.\n| Hyperparameters          | Large(1.18B) | Baseline(364M) | Small(79M) |\n|--------------------------|--------------|----------------|------------|\n| Transformer blocks       | 24           | 12             | 8          |\n| Attention heads          | 16           | 12             | 24         |\n| Layer width              | 2048         | 1536           | 768        |\n| Feedforward hidden size  | 8192         | 6144           | 3072       |",
+        "type": "code",
+        "location": "/README.md:88-111"
+    },
+    "11": {
+        "file_id": 0,
+        "content": "The code describes the architecture variants of Gato used in the paper, specifically the Large (1.18B), Baseline (364M), and Small (79M) versions. These are named as `large()`, `baseline()`, and `small()` respectively in `GatoConfig`. The table shows the differences in hyperparameters such as transformer blocks, attention heads, layer width, and feedforward hidden size for each variant.",
+        "type": "comment"
+    },
+    "12": {
+        "file_id": 0,
+        "content": "| Key/value size           | 128          | 128            | 32         |\n### Residual Embedding\n> Appendix C.2. Embedding Function\nThere are no mentions that how many residual networks must be stacked for token embeddings.<br>\nTherefore, I remain configurable in `GatoConfig`.\nWhatever how many residual layers are existing, full-preactivation is a key.\nThe blocks are consisted of:\n- Version 2 ResNet architecture (based on ResNet50V2)\n- GroupNorm (instead of LayerNorm)\n- GeLU (instead of ReLU)\n### Position Encodings\n> Appendix C.3. Position Encodings\n#### Patch Position Encodings\nLike [Vision Transformer (ViT)](https://github.com/google-research/vision_transformer) by Google, Gato takes the input images as raster-ordered 16x16 patches.<br>\nUnlike the Vision Transformer model, however, Gato divides its patch encoding strategy into 2 phases, training and evaluation.\nFor high-performance computation in TensorFlow, I have used the following expressions.\n$C$ and $R$ mean column and row-wise, and $F$ and $T$ mean `from` and `to` respectively.",
+        "type": "code",
+        "location": "/README.md:112-140"
+    },
+    "13": {
+        "file_id": 0,
+        "content": "The code describes a Residual Embedding layer in Gato, which consists of residual networks with full-preactivation blocks based on the Version 2 ResNet architecture. The position encodings are divided into two phases - training and evaluation, and use patch encoding strategy similar to Vision Transformer model.",
+        "type": "comment"
+    },
+    "14": {
+        "file_id": 0,
+        "content": "$$\n\\begin{align}\n  v^R_F &= \\begin{bmatrix}\n    0 & 32 & 64 & 96\n  \\end{bmatrix} \\\\\n  v^R_T &= \\begin{bmatrix}\n    32 & 64 & 96 & 128\n  \\end{bmatrix} \\\\\n  v^C_F &= \\begin{bmatrix}\n    0 & 26 & 51 & 77 & 102\n  \\end{bmatrix} \\\\\n  v^C_T &= \\begin{bmatrix}\n    26 & 51 & 77 & 102 & 128\n  \\end{bmatrix} \\\\\n  \\\\\n  P_R &= \\begin{cases}\n    \\mathsf{if} \\ \\mathsf{training} & v^R_F + \\mathsf{uniform}(v^R_T - v^R_F) \\\\\n    \\mathsf{otherwise} & \\mathsf{round}(\\frac{v^R_F + v^R_T}{2})\n  \\end{cases} \\\\\n  P_C &= \\begin{cases}\n    \\mathsf{if} \\ \\mathsf{training} & v^C_F + \\mathsf{uniform}(v^C_T - v^C_F) \\\\\n    \\mathsf{otherwise} & \\mathsf{round}(\\frac{v^C_F + v^C_T}{2})\n  \\end{cases} \\\\\n  \\\\\n  E^R_P &= P_R \\cdot 1^{\\mathsf{T}}_C \\\\\n  E^C_P &= 1^{\\mathsf{T}}_R \\cdot P_C \\\\\n  \\\\\n  \\therefore E &= E_I + E^R_P + E^C_P\n\\end{align}\n$$\n#### Local Observation Position Encodings\nIn the definition of Appendix B., text tokens, image patch tokens, and discrete & continuous values are observation tokens<br>\nWhen Gato receives those values, they must be encoded with their own (local) time steps.",
+        "type": "code",
+        "location": "/README.md:142-176"
+    },
+    "15": {
+        "file_id": 0,
+        "content": "The code defines position encodings for observation tokens, which can be text, image patches, or continuous/discrete values. If training, the values are randomly sampled from a range; otherwise, they're averaged between two ranges. These position encodings are then used to compute local observation position embeddings, which are added to the input embeddings for each token type.",
+        "type": "comment"
+    },
+    "16": {
+        "file_id": 0,
+        "content": "## Requirements\n```bash\npip install tensorflow>=2.11.0\n```\n## Contributing\nThis repository is still a work in progress.<br>\nCurrently, no downloads and no executables are provided.\nI welcome many contributors who can help.\n## License\nLicensed under the [MIT license](https://github.com/OrigamiDream/gato/blob/main/LICENSE).",
+        "type": "code",
+        "location": "/README.md:178-192"
+    },
+    "17": {
+        "file_id": 0,
+        "content": "This code outlines the requirements for running the program, which includes installing TensorFlow version 2.11.0 or higher. It also mentions that the repository is still a work in progress and encourages contributions from developers. The project is licensed under the MIT license.",
+        "type": "comment"
+    },
+    "18": {
+        "file_id": 1,
+        "content": "/gato/__init__.py",
+        "type": "filepath"
+    },
+    "19": {
+        "file_id": 1,
+        "content": "The code imports necessary modules (GatoConfig, Gato), enables tensor chaining for improved performance.",
+        "type": "summary"
+    },
+    "20": {
+        "file_id": 1,
+        "content": "from gato.config import GatoConfig\nfrom gato.models import Gato\nfrom flowchain import enable_tensor_chaining\nenable_tensor_chaining()",
+        "type": "code",
+        "location": "/gato/__init__.py:1-5"
+    },
+    "21": {
+        "file_id": 1,
+        "content": "The code imports necessary modules (GatoConfig, Gato), enables tensor chaining for improved performance.",
+        "type": "comment"
+    },
+    "22": {
+        "file_id": 2,
+        "content": "/gato/config.py",
+        "type": "filepath"
+    },
+    "23": {
+        "file_id": 2,
+        "content": "This code initializes a machine learning model with tokenization, transformer layers, and other parameters. It provides predefined configurations via static methods and defines a class for configuration properties and methods to convert between dictionaries.",
+        "type": "summary"
+    },
+    "24": {
+        "file_id": 2,
+        "content": "import copy\nfrom typing import Dict, Any\nclass GatoConfig:\n    @staticmethod\n    def large():\n        return GatoConfig(num_transformer_blocks=24,\n                          num_attention_heads=16,\n                          layer_width=2048,\n                          feedforward_hidden_size=8192,\n                          key_value_size=128)\n    @staticmethod\n    def baseline():\n        return GatoConfig(num_transformer_blocks=12,\n                          num_attention_heads=12,\n                          layer_width=1536,\n                          feedforward_hidden_size=6144,\n                          key_value_size=128)\n    @staticmethod\n    def small():\n        return GatoConfig(num_transformer_blocks=8,\n                          num_attention_heads=24,\n                          layer_width=768,\n                          feedforward_hidden_size=3072,\n                          key_value_size=32)\n    def __init__(self, **kwargs):\n        self.input_dim = kwargs.pop('input_dim', 768)\n        self.img_patch_size = kwargs.pop('img_patch_size', 16)",
+        "type": "code",
+        "location": "/gato/config.py:1-34"
+    },
+    "25": {
+        "file_id": 2,
+        "content": "Class \"GatoConfig\" defines different configurations for the Gato model with varying parameters such as num_transformer_blocks, num_attention_heads, layer_width, feedforward_hidden_size, and key_value_size. The static methods large(), baseline(), and small() return instances of GatoConfig with predefined parameter values. The constructor method __init__ allows customizing input_dim and img_patch_size based on specific requirements.",
+        "type": "comment"
+    },
+    "26": {
+        "file_id": 2,
+        "content": "        # Section 2.3. Training\n        self.token_sequence_length = kwargs.pop('token_sequence_length', 1024)\n        # Section 2.1. Tokenization\n        # Text - SentencePiece\n        self.vocabulary_size = kwargs.pop('vocabulary_size', 32000)\n        # Discrete values\n        self.actions_size = kwargs.pop('actions_size', 1024)\n        # Continuous values\n        self.continuous_values_size = kwargs.pop('continuous_values_size', 1024)\n        # Appendix C.1. Transformer Hyperparameters\n        self.num_transformer_blocks = kwargs.pop('num_transformer_blocks', 8)\n        self.num_attention_heads = kwargs.pop('num_attention_heads', 24)\n        self.layer_width = kwargs.pop('layer_width', 768)\n        self.feedforward_hidden_size = kwargs.pop('feedforward_hidden_size', 3072)\n        self.key_value_size = kwargs.pop('key_value_size', 32)\n        # Appendix E. Regularization\n        self.dropout_rate = kwargs.pop('dropout_rate', 0.1)\n        # Appendix C.2. Embedding Function\n        self.num_group_norm_groups = kwargs.pop('num_group_norm_groups', 32)",
+        "type": "code",
+        "location": "/gato/config.py:36-58"
+    },
+    "27": {
+        "file_id": 2,
+        "content": "This code initializes and sets hyperparameters for a machine learning model. It includes parameters for tokenization, transformer layers, embedding function, regularization, and model training.",
+        "type": "comment"
+    },
+    "28": {
+        "file_id": 2,
+        "content": "        # Appendix C.3. Position Encodings > Patch Position Encodings\n        self.discretize_depth = kwargs.pop('discretize_depth', 128)\n        # Appendix C.3. Position Encodings > Local Observation Position Encodings\n        self.local_position_encoding_size = kwargs.pop('local_position_encoding_size', 512)\n    @property\n    def embedding_input_size(self):\n        return self.vocabulary_size + self.continuous_values_size + self.actions_size + 1\n    @property\n    def output_target_size(self):\n        return self.vocabulary_size + self.actions_size\n    def to_dict(self) -> Dict[str, Any]:\n        output = copy.deepcopy(self.__dict__)\n        return output\n    @classmethod\n    def from_dict(cls, config_dict: Dict[str, Any]) -> \"GatoConfig\":\n        config = cls(**config_dict)\n        return config",
+        "type": "code",
+        "location": "/gato/config.py:60-80"
+    },
+    "29": {
+        "file_id": 2,
+        "content": "The code defines a class with properties for embedding input size, output target size, and other parameters. The 'discretize_depth' and 'local_position_encoding_size' can be set through keyword arguments. It also provides methods to convert the configuration to a dictionary and back.",
+        "type": "comment"
+    },
+    "30": {
+        "file_id": 3,
+        "content": "/gato/models/__init__.py",
+        "type": "filepath"
+    },
+    "31": {
+        "file_id": 3,
+        "content": "The Gato class in Keras processes inputs with different encodings using components like image_embedding and transformer. The code initializes a Transformer model, performs value masking, adds local position encodings, and defines PatchEmbedding for residual embedding.",
+        "type": "summary"
+    },
+    "32": {
+        "file_id": 3,
+        "content": "import tensorflow as tf\nfrom gato.models.transformer import TransformerBlock\nfrom gato.models.embedding import PatchPositionEncoding, ResidualEmbedding, LocalPositionEncoding, DiscreteEmbedding\nfrom gato.models.tokenizers import ContinuousValueTokenizer\nfrom tensorflow.keras import models\nfrom gato import GatoConfig\nfrom typing import Dict, Any, Union\nclass Gato(models.Model):\n    def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable: bool = True, name: str = 'Gato', **kwargs):\n        super(Gato, self).__init__(trainable=trainable, name=name, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.image_embedding = PatchEmbedding(config, trainable=trainable, name='ImagePatchEmbedding')\n        self.discrete_embedding = DiscreteEmbedding(config, trainable=trainable, name='DiscreteEmbedding')\n        self.continuous_encoding = ContinuousValueTokenizer(config, name='ContinuousValueEncoding')\n        self.transformer = Transformer(config, trainable=trainable, name='Transformers')",
+        "type": "code",
+        "location": "/gato/models/__init__.py:1-22"
+    },
+    "33": {
+        "file_id": 3,
+        "content": "The code defines a Gato class that inherits from Keras Model. It takes a configuration and optional trainable and name parameters for initialization. The class initializes various components such as image_embedding, discrete_embedding, continuous_encoding, and transformer based on the provided config.",
+        "type": "comment"
+    },
+    "34": {
+        "file_id": 3,
+        "content": "        self.local_pos_encoding = LocalPositionEncoding(config, trainable=trainable, name='LocalPositionEncoding')\n    def call(self, inputs, training=None, mask=None):\n        # input_ids with (B, L, 768)\n        # encoding with (B, L) or (B,)\n        # row_pos and col_pos with tuple of (pos_from, pos_to)\n        # obs_pos and obs_mask with (B, L) or (B,)\n        input_ids, (encoding, row_pos, col_pos), (obs_pos, obs_mask) = inputs\n        # Encoding flags for embed masks\n        # 0 - image\n        # 1 - continuous\n        # 2 - discrete (actions, texts)\n        encoding = tf.one_hot(encoding, depth=3, dtype=tf.float32)\n        ones = tf.ones((input_ids.shape[0], 1, self.config.layer_width), dtype=tf.float32)\n        image_embed = self.image_embedding((input_ids, (row_pos, col_pos)), training=training)\n        image_embed *= encoding[..., 0].transpose().matmul(ones)  # image patch masking\n        # continuous value takes from first value of input_ids\n        continuous_embed = self.continuous_encoding(input_ids[..., 0])",
+        "type": "code",
+        "location": "/gato/models/__init__.py:23-42"
+    },
+    "35": {
+        "file_id": 3,
+        "content": "This code snippet is defining a model class for processing inputs with various types of encoding (image, continuous, discrete). It creates a local position encoding and applies one-hot encoding to the input. The image_embedding function is used to extract image embeddings, which are then masked using the image patch mask derived from the one-hot encoded input.",
+        "type": "comment"
+    },
+    "36": {
+        "file_id": 3,
+        "content": "        continuous_embed = self.discrete_embedding(continuous_embed)\n        continuous_embed *= encoding[..., 1].transpose().matmul(ones)  # continuous value masking\n        discrete_embed = self.discrete_embedding(input_ids[..., 0])\n        discrete_embed *= encoding[..., 2].transpose().matmul(ones)  # discrete value masking\n        # Appendix C.3. Position Encodings > Local Observation Position Encodings\n        # add local observation position encodings\n        embed = image_embed + continuous_embed + discrete_embed\n        embed += self.local_pos_encoding((obs_pos, obs_mask))\n        hidden_states = self.transformer(embed)\n        return hidden_states\n    def get_config(self):\n        return super(Gato, self).get_config()\nclass Transformer(models.Model):\n    def __init__(self,\n                 config: Union[GatoConfig, Dict[str, Any]],\n                 trainable: bool = True,\n                 name: str = None,\n                 **kwargs):\n        super(Transformer, self).__init__(trainable=trainable, name=name, **kwargs)",
+        "type": "code",
+        "location": "/gato/models/__init__.py:43-68"
+    },
+    "37": {
+        "file_id": 3,
+        "content": "The code initializes a Transformer model in the Gato architecture. It performs value masking for continuous and discrete values, adds local observation position encodings, and passes the input through a transformer layer.",
+        "type": "comment"
+    },
+    "38": {
+        "file_id": 3,
+        "content": "        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.encoders = [TransformerBlock(config=self.config, trainable=trainable, name='EncoderBlock{}'.format(idx))\n                         for idx in range(self.config.num_transformer_blocks)]\n    def call(self, inputs, training=None, mask=None):\n        x = inputs\n        for encoder in self.encoders:\n            x = encoder(x)\n        return x\n    def get_config(self):\n        return super(Transformer, self).get_config()\nclass PatchEmbedding(models.Model):\n    def __init__(self,\n                 config: Union[GatoConfig, Dict[str, Any]],\n                 trainable: bool = True,\n                 name: str = None,\n                 **kwargs):\n        super(PatchEmbedding, self).__init__(trainable=trainable, name=name, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.residual_embedding = ResidualEmbedding(config, trainable=trainable, name='ResidualEmbedding')",
+        "type": "code",
+        "location": "/gato/models/__init__.py:69-96"
+    },
+    "39": {
+        "file_id": 3,
+        "content": "This code initializes an instance of the Transformer class, which contains a list of TransformerBlock objects. It also defines a PatchEmbedding class for residual embedding. The config parameter is checked and converted to a GatoConfig object if needed.",
+        "type": "comment"
+    },
+    "40": {
+        "file_id": 3,
+        "content": "        self.pos_encoding = PatchPositionEncoding(config, trainable=trainable, name='PatchPositionEncoding')\n    def call(self, inputs, training=None, mask=None):\n        input_ids, (row_pos, col_pos) = inputs\n        patch_size = self.config.img_patch_size\n        depth = self.config.input_dim // (patch_size * patch_size)\n        x = input_ids.reshape((-1, input_ids.shape[1], patch_size, patch_size, depth))\n        x = self.residual_embedding(x)\n        x = self.pos_encoding((x, (row_pos, col_pos)))\n        return x\n    def get_config(self):\n        return super(PatchEmbedding, self).get_config()",
+        "type": "code",
+        "location": "/gato/models/__init__.py:97-110"
+    },
+    "41": {
+        "file_id": 3,
+        "content": "This code defines a PatchEmbedding class that performs patch-based embedding for image data. It initializes a PatchPositionEncoding object, reshapes the input, applies residual embedding, and then passes it through positional encoding based on (row_pos, col_pos). The get_config method returns the configuration.",
+        "type": "comment"
+    },
+    "42": {
+        "file_id": 4,
+        "content": "/gato/models/embedding.py",
+        "type": "filepath"
+    },
+    "43": {
+        "file_id": 4,
+        "content": "The code presents PatchPositionEncoding models, Residual Embedding layers with convolutional projection and group normalization, LocalPositionEncoding for tokenizing input using convolutions, and a \"DiscreteEmbedding\" class used in Gato model for natural language processing tasks.",
+        "type": "summary"
+    },
+    "44": {
+        "file_id": 4,
+        "content": "import tensorflow as tf\nfrom tensorflow.keras import layers, models\nfrom gato import GatoConfig\nfrom typing import Dict, Any, Union\ndef _randomized_positions(from_v, to_v):\n    pos = tf.random.uniform(from_v.shape, minval=0, maxval=1, dtype=tf.float32)\n    pos = pos * (to_v - from_v).cast(tf.float32)\n    return pos.cast(tf.int32)\ndef _rounded_mean_positions(from_v, to_v):\n    pos = (from_v + to_v).cast(tf.float32) / 2.\n    return pos.round()\nclass PatchPositionEncoding(layers.Layer):\n    def __init__(self,\n                 config: Union[GatoConfig, Dict[str, Any]],\n                 trainable=True, name=None, *args, **kwargs):\n        \"\"\"\n        Appendix C.3. Position Encodings\n        \"\"\"\n        super(PatchPositionEncoding, self).__init__(trainable=trainable, name=name, *args, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.embedding_dim = self.config.layer_width\n        self.discretize_depth = self.config.discretize_depth\n        self.patch_size = self.config.img_patch_size",
+        "type": "code",
+        "location": "/gato/models/embedding.py:1-35"
+    },
+    "45": {
+        "file_id": 4,
+        "content": "This code defines a PatchPositionEncoding class which is a Layer that applies position encodings to image patches. It takes a GatoConfig or config dictionary as input, and initializes the layer with its width, discretize depth, and patch size. The _randomized_positions and _rounded_mean_positions functions are used internally for generating position encodings.",
+        "type": "comment"
+    },
+    "46": {
+        "file_id": 4,
+        "content": "        self.row_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='row_embedding')\n        self.col_embedding = layers.Embedding(self.discretize_depth, self.embedding_dim, name='col_embedding')\n    def _discretize(self, pos):\n        return (pos * self.discretize_depth).round()\n    def _discretize_interval(self, interval):\n        pos_from, pos_to = interval\n        return self._discretize(pos_from), self._discretize(pos_to)\n    def call(self, inputs, *args, **kwargs):\n        # Appendix C.3. Position Encodings; Figure 15 | Patch position encodings.\n        training = kwargs['training'] if 'training' in kwargs else False\n        # input_ids must already be embedded by the resnet embedding function.\n        # row_pos and col_pos must be intervals which is tuple of (pos_from, pos_to)\n        # row_pos and col_pos must be normalized between [0, 1] to show their relativity.\n        input_ids, (row_pos, col_pos) = inputs\n        row_pos_from, row_pos_to = self._discretize_interval(row_pos)",
+        "type": "code",
+        "location": "/gato/models/embedding.py:37-55"
+    },
+    "47": {
+        "file_id": 4,
+        "content": "This code defines an embedding model for 2D positions. It initializes two embedding layers (row and col) based on the discretize_depth and embedding_dim parameters. The _discretize function is used to normalize pos values, and _discretize_interval returns the discretized versions of a given interval. Finally, the call method takes input_ids, row_pos, and col_pos as inputs and embeds them using the defined embedding layers.",
+        "type": "comment"
+    },
+    "48": {
+        "file_id": 4,
+        "content": "        col_pos_from, col_pos_to = self._discretize_interval(col_pos)\n        if training:\n            # > During training a random index is uniformly sampled from the quantized interval.\n            row_pos = row_pos_from + _randomized_positions(row_pos_from, row_pos_to)\n            col_pos = col_pos_from + _randomized_positions(col_pos_from, col_pos_to)\n        else:\n            # > During evaluation we deterministically take the (rounded) mean of the interval.\n            row_pos = _rounded_mean_positions(row_pos_from, row_pos_to)\n            col_pos = _rounded_mean_positions(col_pos_from, col_pos_to)\n        # > Once row and column position encoding are retrieved from the embedding table,\n        # > they are added onto the token embedding produced by the resnet embedding function.\n        return input_ids + self.row_embedding(row_pos.cast(tf.int32)) + self.col_embedding(col_pos.cast(tf.int32))\n    def get_config(self):\n        config = super(PatchPositionEncoding, self).get_config()\n        config.update({",
+        "type": "code",
+        "location": "/gato/models/embedding.py:56-73"
+    },
+    "49": {
+        "file_id": 4,
+        "content": "The code retrieves row and column position encodings from the embedding table, applies them to token embeddings produced by resnet, and either randomly samples a position within the quantized interval during training or takes the rounded mean of the interval during evaluation.",
+        "type": "comment"
+    },
+    "50": {
+        "file_id": 4,
+        "content": "            'config': self.config.to_dict(),\n        })\n        return config\nclass ResidualUnit(layers.Layer):\n    def __init__(self, num_groups: int, filters: int, trainable=True, name=None, *args, **kwargs):\n        super(ResidualUnit, self).__init__(trainable=trainable, name=name, *args, **kwargs)\n        self.num_groups = num_groups\n        self.filters = filters\n        self.gn1 = self.gn2 = None\n        self.conv1 = self.conv2 = None\n        self.conv_proj = self.gn_proj = None\n    def build(self, input_shape):\n        self.gn1 = layers.GroupNormalization(groups=self.num_groups, name='gn1')\n        self.gn2 = layers.GroupNormalization(groups=self.num_groups, name='gn2')\n        self.conv1 = layers.Conv2D(filters=self.filters // 2, kernel_size=(3, 3), strides=(1, 1),\n                                   use_bias=False, padding='same', name='conv1')\n        self.conv2 = layers.Conv2D(filters=self.filters, kernel_size=(3, 3), strides=(2, 2),\n                                   use_bias=False, padding='same', name='conv2')",
+        "type": "code",
+        "location": "/gato/models/embedding.py:74-95"
+    },
+    "51": {
+        "file_id": 4,
+        "content": "The code defines a ResidualUnit class with GroupNormalization and Conv2D layers. It builds the layers in the build() method, initializing them with specified parameters such as filter count and kernel size. The class is part of the gato/gato/models/embedding.py file, indicating it might be used for model embedding operations.",
+        "type": "comment"
+    },
+    "52": {
+        "file_id": 4,
+        "content": "        self.conv_proj = layers.Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(2, 2),\n                                       use_bias=False, padding='same', name='conv_proj')\n        self.gn_proj = layers.GroupNormalization(groups=self.num_groups, name='gn_proj')\n    def call(self, inputs, *args, **kwargs):\n        # Supplementary Material B. Agent Data Tokenization Details; Figure 16\n        # > This block uses the v2 ResNet architecture, GroupNorm (instead of LayerNorm) normalization,\n        # > and GELU (instead RELU) activation functions.\n        x = inputs\n        residual = self.conv_proj(self.gn_proj(x))\n        x = self.gn1(x).gelu()\n        x = self.conv1(x)\n        x = self.gn2(x).gelu()\n        x = self.conv2(x)\n        return x + residual\nclass ResidualEmbedding(layers.Layer):\n    def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable=True, name=None, *args, **kwargs):\n        \"\"\"\n        Appendix C.2. Embedding Function\n        \"\"\"\n        super(ResidualEmbedding, self).__init__(trainable=trainable, name=name, *args, **kwargs)",
+        "type": "code",
+        "location": "/gato/models/embedding.py:96-123"
+    },
+    "53": {
+        "file_id": 4,
+        "content": "The code defines a Residual Embedding layer with convolutional projection and group normalization. It uses the v2 ResNet architecture, GroupNorm instead of LayerNorm, and GELU instead of RELU activation functions. The class also includes an initializer method and a call function for processing inputs.",
+        "type": "comment"
+    },
+    "54": {
+        "file_id": 4,
+        "content": "        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.root_conv = self.conv_proj = None\n        self.residual_units = None\n        self.num_patches = None\n    def build(self, input_shape):\n        if self.config.input_dim != self.config.layer_width:\n            self.conv_proj = layers.Conv2D(filters=self.config.layer_width,\n                                           kernel_size=(1, 1),\n                                           strides=(1, 1),\n                                           padding='same',\n                                           use_bias=False,\n                                           name='conv_proj')\n        self.root_conv = models.Sequential([\n            layers.Conv2D(filters=96, kernel_size=(7, 7), strides=(2, 2),\n                          use_bias=False, padding='same', name='conv_root'),\n            layers.GroupNormalization(groups=self.config.num_group_norm_groups, name='gn_root'),\n            layers.Activation('gelu', name='act_root')",
+        "type": "code",
+        "location": "/gato/models/embedding.py:125-144"
+    },
+    "55": {
+        "file_id": 4,
+        "content": "This code initializes instance variables and defines the `build` method in a model. It checks if the input is a dictionary and creates an instance of `GatoConfig`. Then, it sets various attributes for the model's layers and builds the root convolution layer using a series of Conv2D, GroupNormalization, and Activation layers.",
+        "type": "comment"
+    },
+    "56": {
+        "file_id": 4,
+        "content": "        ])\n        self.residual_units = [ResidualUnit(num_groups=self.config.num_group_norm_groups,\n                                            filters=96 * 2 ** (i + 1),\n                                            name='residual_unit_{}'.format(i + 1))\n                               for i in range(3)]\n    def call(self, inputs, *args, **kwargs):\n        # Section 2.1 Tokenization.\n        x = self.root_conv(inputs)\n        # NOTE: Page 3-4, Section 2.2 Embedding input tokens and setting output targets\n        # > Tokens belonging to image patches for any time-step are embedded\n        # > using a single ResNet block to obtain a vector per patch.\n        # I don't think that transforming single 16x16 patch into feature map\n        # with depth 768 at once does not give advantages coming from inductive bias.\n        # This is currently discussing in issue #2\n        for block in self.residual_units:\n            x = block(x)\n        if self.conv_proj is not None:\n            x = self.conv_proj(x)\n        x = x.reshape((-1, inputs.shape[1], self.config.layer_width))",
+        "type": "code",
+        "location": "/gato/models/embedding.py:145-166"
+    },
+    "57": {
+        "file_id": 4,
+        "content": "The code defines a model with residual units and applies convolutions to tokenize the input. It uses a ResNet block to embed tokens from image patches into feature maps, which is currently under discussion in issue #2. The model then reshapes the output based on the config parameters.",
+        "type": "comment"
+    },
+    "58": {
+        "file_id": 4,
+        "content": "        return x\n    def get_config(self):\n        config = super(ResidualEmbedding, self).get_config()\n        config.update({\n            'config': self.config.to_dict()\n        })\n        return config\nclass LocalPositionEncoding(layers.Layer):\n    def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable=True, name=None, *args, **kwargs):\n        \"\"\"\n        Appendix C.3. Position Encodings > Local Observation Position Encodings\n        \"\"\"\n        super(LocalPositionEncoding, self).__init__(trainable=trainable, name=name, *args, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.embedding = None\n    def build(self, input_shape):\n        self.embedding = layers.Embedding(self.config.token_sequence_length, self.config.layer_width)\n        self.built = True\n    def call(self, inputs, *args, **kwargs):\n        # Appendix C.3. Position Encodings > Local Observation Position Encodings; Figure 18 | Local position encodings.",
+        "type": "code",
+        "location": "/gato/models/embedding.py:167-195"
+    },
+    "59": {
+        "file_id": 4,
+        "content": "This code defines a LocalPositionEncoding class that inherits from the layers.Layer base class. It initializes an embedding layer using ResidualEmbedding and builds the embedding layer based on the input shape. The call method applies local position encodings to inputs, following the specifications in Appendix C.3 of the associated paper.",
+        "type": "comment"
+    },
+    "60": {
+        "file_id": 4,
+        "content": "        # > Note that no position encodings are added to action tokens.\n        # So I added `obs_mask` to mask the action token into zeros.\n        obs_pos, obs_mask = inputs\n        embed = self.embedding(obs_pos)\n        ones = tf.ones((embed.shape[0], 1, self.config.layer_width), dtype=tf.float32)\n        obs_mask = obs_mask.cast(tf.float32).transpose().matmul(ones)\n        return embed * obs_mask\n    def get_config(self):\n        config = super(LocalPositionEncoding, self).get_config()\n        config.update({\n            'config': self.config.to_dict()\n        })\n        return config\nclass DiscreteEmbedding(layers.Layer):\n    def __init__(self, config: Union[GatoConfig, Dict[str, Any]], trainable=True, name=None, *args, **kwargs):\n        super(DiscreteEmbedding, self).__init__(trainable=trainable, name=name, *args, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.embedding = None\n    def build(self, input_shape):\n        # Appendix C.1. Transformer Hyperparameters",
+        "type": "code",
+        "location": "/gato/models/embedding.py:196-226"
+    },
+    "61": {
+        "file_id": 4,
+        "content": "The code defines a class called \"DiscreteEmbedding\" which is a type of layer in the Gato model. This layer builds an embedding matrix for discrete input tokens based on a given configuration. It also includes a function called \"get_config\" to retrieve the current configuration of the layer, and another function called \"build\" to initialize the embedding matrix based on the input shape provided. The code snippet also mentions the concept of position encoding and masking of action tokens in the model's processing.",
+        "type": "comment"
+    },
+    "62": {
+        "file_id": 4,
+        "content": "        # Shared Embedding\n        with tf.name_scope('discrete_shared_embedding'):\n            self.embedding = layers.Embedding(self.config.embedding_input_size,\n                                              self.config.layer_width,\n                                              name='discrete_embedding')\n        self.built = True\n    def call(self, inputs, *args, **kwargs):\n        return self.embedding(inputs)\n    def get_config(self):\n        config = super(DiscreteEmbedding, self).get_config()\n        config.update({\n            'config': self.config.to_dict()\n        })\n        return config",
+        "type": "code",
+        "location": "/gato/models/embedding.py:227-242"
+    },
+    "63": {
+        "file_id": 4,
+        "content": "This code defines a class for a shared embedding layer, which is used in natural language processing tasks. It uses TensorFlow's Embedding layer with configurable input size and layer width, and returns the embedding of inputs passed to the call method. The get_config method returns the configuration details of the layer.",
+        "type": "comment"
+    },
+    "64": {
+        "file_id": 5,
+        "content": "/gato/models/tokenizers.py",
+        "type": "filepath"
+    },
+    "65": {
+        "file_id": 5,
+        "content": "ContinuousValueTokenizer is a class for tokenizing continuous values using mu-law encoding, discretizing values into 1024 bins with uniform width on the domain [-1, 1], and shifting them to avoid overlap with text tokens. It can be initialized with optional trainable, name, mu, m, and bins parameters.",
+        "type": "summary"
+    },
+    "66": {
+        "file_id": 5,
+        "content": "import tensorflow as tf\nfrom gato import GatoConfig\nfrom tensorflow.keras import models\nfrom typing import Union, Dict, Any\ndef mu_law_encode(x, mu=100, m=256):\n    # Appendix B. Agent Data Tokenization Details\n    numerator = tf.math.log(x.abs() * mu + 1.0)\n    denominator = tf.math.log(m * mu + 1.0)\n    return (numerator / denominator) * x.sign()\ndef tokenize_continuous_values(x, mu=100, m=256, bins=1024, shift=None):\n    # Appendix B. Agent Data Tokenization Details\n    # > Finally, they are discretized using bins of uniform width on the domain [-1, 1].\n    c = mu_law_encode(x, mu, m)\n    # > We use 1024 bins and shift the resulting integers\n    # > so they are not overlapping with the ones used for text tokens.\n    c = (c + 1) * (bins / 2)\n    c = c.cast(tf.int32)\n    if shift is not None:\n        c += shift\n    return c\nclass ContinuousValueTokenizer(models.Model):\n    def __init__(self,\n                 config: Union[GatoConfig, Dict[str, Any]],\n                 mu=100, m=256, bins=1024,\n                 trainable=False, name=None, **kwargs):",
+        "type": "code",
+        "location": "/gato/models/tokenizers.py:1-34"
+    },
+    "67": {
+        "file_id": 5,
+        "content": "This code contains a function for mu-law encoding and tokenizing continuous values. The class ContinuousValueTokenizer is implemented as a model, using the provided parameters for mu, m, bins, and shift. It discretizes values using 1024 bins with uniform width on the domain [-1, 1]. These tokenized values are then shifted so they do not overlap with text tokens. The class can be initialized with optional trainable and name parameters.",
+        "type": "comment"
+    },
+    "68": {
+        "file_id": 5,
+        "content": "        super(ContinuousValueTokenizer, self).__init__(trainable=trainable, name=name, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.mu = mu\n        self.m = m\n        self.bins = bins\n    def call(self, inputs, training=None, mask=None):\n        return tokenize_continuous_values(inputs, self.mu, self.m, self.bins, shift=self.config.vocabulary_size)\n    def get_config(self):\n        return super(ContinuousValueTokenizer, self).get_config()",
+        "type": "code",
+        "location": "/gato/models/tokenizers.py:35-47"
+    },
+    "69": {
+        "file_id": 5,
+        "content": "ContinuousValueTokenizer is a class for tokenizing continuous values. It initializes with config, mu, m, and bins parameters. The call method tokenizes inputs using tokenize_continuous_values function. The get_config method returns the configuration of the tokenizer.",
+        "type": "comment"
+    },
+    "70": {
+        "file_id": 6,
+        "content": "/gato/models/transformer.py",
+        "type": "filepath"
+    },
+    "71": {
+        "file_id": 6,
+        "content": "The code defines a Transformer model with attention, feed-forward network, and dropout layers for text analysis, utilizing layer normalization and GEGLU activation for improved performance. The TransformerBlock class is defined with pre-normalization in its call method and uses layer normalization twice.",
+        "type": "summary"
+    },
+    "72": {
+        "file_id": 6,
+        "content": "import tensorflow as tf\nfrom tensorflow.keras import layers, models, activations\nfrom gato import GatoConfig\nfrom typing import Dict, Any, Union\nclass TransformerBlock(layers.Layer):\n    def __init__(self,\n                 config: Union[GatoConfig, Dict[str, Any]],\n                 trainable: bool = True,\n                 name: str = None,\n                 *args, **kwargs):\n        super(TransformerBlock, self).__init__(trainable, name, *args, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.attention = self.feed_forward = self.dropout = None\n        self.layer_norm1 = self.layer_norm2 = None\n    def build(self, input_shape):\n        input_shape = tf.TensorShape(input_shape)\n        hidden_size = input_shape[-1]\n        self.attention = layers.MultiHeadAttention(num_heads=self.config.num_attention_heads,\n                                                   key_dim=self.config.key_value_size,\n                                                   value_dim=self.config.key_value_size,",
+        "type": "code",
+        "location": "/gato/models/transformer.py:1-30"
+    },
+    "73": {
+        "file_id": 6,
+        "content": "The code defines a TransformerBlock class that extends the TensorFlow Layer class. It initializes instance variables for attention, feed_forward, and dropout layers, as well as layer normalization layers. The build method is called to create these layers based on the input shape, hidden size, number of attention heads, and key-value size defined in the config parameter.",
+        "type": "comment"
+    },
+    "74": {
+        "file_id": 6,
+        "content": "                                                   dropout=self.config.dropout_rate,\n                                                   name='attention')\n        self.dropout = layers.Dropout(self.config.dropout_rate, name='attention_dropout')\n        self.feed_forward = models.Sequential(layers=[\n            layers.Dense(units=self.config.feedforward_hidden_size,\n                         activation='linear',\n                         name='dense_intermediate'),\n            # Appendix C.1. Transformer Hyperparameters\n            # Activation Function: GEGLU\n            layers.Lambda(lambda x: activations.gelu(x, approximate=False), name='gelu'),\n            layers.Dropout(self.config.dropout_rate, name='dropout_intermediate'),\n            layers.Dense(units=hidden_size,\n                         activation='linear',\n                         name='dense'),\n            layers.Dropout(self.config.dropout_rate, name='dropout'),\n        ], name='feed_forward')\n        self.layer_norm1 = layers.LayerNormalization(epsilon=1e-6, name='layer_norm1')",
+        "type": "code",
+        "location": "/gato/models/transformer.py:31-47"
+    },
+    "75": {
+        "file_id": 6,
+        "content": "The code defines a Transformer model with attention mechanism, dropout layers, and feed-forward network. It includes layer normalization for weight normalization and applies GEGLU activation function in the feed-forward network.",
+        "type": "comment"
+    },
+    "76": {
+        "file_id": 6,
+        "content": "        self.layer_norm2 = layers.LayerNormalization(epsilon=1e-6, name='layer_norm2')\n    def call(self, inputs, *args, **kwargs):\n        # Appendix C.1. Transformer Hyperparameters\n        # Layer Normalization: Pre-Norm\n        residual = inputs\n        x = self.layer_norm1(inputs)\n        x = self.attention(x, x, x)\n        x = self.dropout(x)\n        x = x + residual\n        residual = x\n        x = self.layer_norm2(inputs)\n        x = self.feed_forward(x)\n        x = x + residual\n        return x\n    def get_config(self):\n        config = super(TransformerBlock, self).get_config()\n        config.update({\n            'config': self.config.to_dict(),\n        })\n        return config",
+        "type": "code",
+        "location": "/gato/models/transformer.py:48-70"
+    },
+    "77": {
+        "file_id": 6,
+        "content": "This code defines a TransformerBlock class with pre-normalization in its call method. It performs layer normalization twice, before the attention mechanism and after the feed-forward network. The get_config method returns the configuration of the block as a dictionary.",
+        "type": "comment"
+    },
+    "78": {
+        "file_id": 7,
+        "content": "/setup.py",
+        "type": "filepath"
+    },
+    "79": {
+        "file_id": 7,
+        "content": "The code is a setup script for the \"gato-tf\" package, using setuptools. It specifies the package name, version, description, URL, authors, license, packages to include, dependencies, required Python version, and keywords/classifiers. The long_description is read from the README.md file.",
+        "type": "summary"
+    },
+    "80": {
+        "file_id": 7,
+        "content": "from setuptools import find_packages, setup\nsetup(\n    name='gato-tf',\n    version='0.0.4',\n    description='Unofficial Gato: A Generalist Agent',\n    url='https://github.com/OrigamiDream/gato.git',\n    author='OrigamiDream',\n    author_email='hello@origamidream.me',\n    long_description=open('README.md', 'r', encoding='utf-8').read(),\n    long_description_content_type='text/markdown',\n    license='MIT',\n    packages=find_packages(exclude=[]),\n    install_requires=[\n        'tensorflow>=2.11',\n        'flowchain>=0.0.4'\n    ],\n    python_requires='>=3.10.0',\n    keywords=[\n        'deep learning',\n        'gato',\n        'tensorflow',\n        'generalist agent'\n    ],\n    classifiers=[\n        'Development Status :: 4 - Beta',\n        'Intended Audience :: Developers',\n        'Topic :: Scientific/Engineering :: Artificial Intelligence',\n        'License :: OSI Approved :: MIT License',\n        'Programming Language :: Python :: 3.10'\n    ]\n)",
+        "type": "code",
+        "location": "/setup.py:1-32"
+    },
+    "81": {
+        "file_id": 7,
+        "content": "The code is a setup script for the \"gato-tf\" package, using setuptools. It specifies the package name, version, description, URL, authors, license, packages to include, dependencies, required Python version, and keywords/classifiers. The long_description is read from the README.md file.",
+        "type": "comment"
+    }
+}

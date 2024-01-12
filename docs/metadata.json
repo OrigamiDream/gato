@@ -1,0 +1,50 @@
+{
+    "url": {
+        "full": "https://github.com/kyegomez/gato",
+        "partial": "kyegomez/gato"
+    },
+    "file_mapping": {
+        "0": {
+            "filepath": "/README.md",
+            "entry_id": 0,
+            "language_id": "markdown"
+        },
+        "1": {
+            "filepath": "/gato/__init__.py",
+            "entry_id": 18,
+            "language_id": "python"
+        },
+        "2": {
+            "filepath": "/gato/config.py",
+            "entry_id": 22,
+            "language_id": "python"
+        },
+        "3": {
+            "filepath": "/gato/models/__init__.py",
+            "entry_id": 30,
+            "language_id": "python"
+        },
+        "4": {
+            "filepath": "/gato/models/embedding.py",
+            "entry_id": 42,
+            "language_id": "python"
+        },
+        "5": {
+            "filepath": "/gato/models/tokenizers.py",
+            "entry_id": 64,
+            "language_id": "python"
+        },
+        "6": {
+            "filepath": "/gato/models/transformer.py",
+            "entry_id": 70,
+            "language_id": "python"
+        },
+        "7": {
+            "filepath": "/setup.py",
+            "entry_id": 78,
+            "language_id": "python"
+        }
+    },
+    "project_name": "gato",
+    "split_count": 1
+}

@@ -1,0 +1,15 @@
+{
+    "summary": "ContinuousValueTokenizer is a class for tokenizing continuous values using mu-law encoding, discretizing values into 1024 bins with uniform width on the domain [-1, 1], and shifting them to avoid overlap with text tokens. It can be initialized with optional trainable, name, mu, m, and bins parameters.",
+    "details": [
+        {
+            "comment": "This code contains a function for mu-law encoding and tokenizing continuous values. The class ContinuousValueTokenizer is implemented as a model, using the provided parameters for mu, m, bins, and shift. It discretizes values using 1024 bins with uniform width on the domain [-1, 1]. These tokenized values are then shifted so they do not overlap with text tokens. The class can be initialized with optional trainable and name parameters.",
+            "location": "\"/media/root/Prima/works/gato/docs/src/gato/models/tokenizers.py\":0-33",
+            "content": "import tensorflow as tf\nfrom gato import GatoConfig\nfrom tensorflow.keras import models\nfrom typing import Union, Dict, Any\ndef mu_law_encode(x, mu=100, m=256):\n    # Appendix B. Agent Data Tokenization Details\n    numerator = tf.math.log(x.abs() * mu + 1.0)\n    denominator = tf.math.log(m * mu + 1.0)\n    return (numerator / denominator) * x.sign()\ndef tokenize_continuous_values(x, mu=100, m=256, bins=1024, shift=None):\n    # Appendix B. Agent Data Tokenization Details\n    # > Finally, they are discretized using bins of uniform width on the domain [-1, 1].\n    c = mu_law_encode(x, mu, m)\n    # > We use 1024 bins and shift the resulting integers\n    # > so they are not overlapping with the ones used for text tokens.\n    c = (c + 1) * (bins / 2)\n    c = c.cast(tf.int32)\n    if shift is not None:\n        c += shift\n    return c\nclass ContinuousValueTokenizer(models.Model):\n    def __init__(self,\n                 config: Union[GatoConfig, Dict[str, Any]],\n                 mu=100, m=256, bins=1024,\n                 trainable=False, name=None, **kwargs):"
+        },
+        {
+            "comment": "ContinuousValueTokenizer is a class for tokenizing continuous values. It initializes with config, mu, m, and bins parameters. The call method tokenizes inputs using tokenize_continuous_values function. The get_config method returns the configuration of the tokenizer.",
+            "location": "\"/media/root/Prima/works/gato/docs/src/gato/models/tokenizers.py\":34-46",
+            "content": "        super(ContinuousValueTokenizer, self).__init__(trainable=trainable, name=name, **kwargs)\n        if isinstance(config, dict):\n            config = GatoConfig(**config)\n        self.config = config\n        self.mu = mu\n        self.m = m\n        self.bins = bins\n    def call(self, inputs, training=None, mask=None):\n        return tokenize_continuous_values(inputs, self.mu, self.m, self.bins, shift=self.config.vocabulary_size)\n    def get_config(self):\n        return super(ContinuousValueTokenizer, self).get_config()"
+        }
+    ]
+}

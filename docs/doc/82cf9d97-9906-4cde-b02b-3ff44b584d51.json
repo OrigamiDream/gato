@@ -1,0 +1,10 @@
+{
+    "summary": "The code is a setup script for the \"gato-tf\" package, using setuptools. It specifies the package name, version, description, URL, authors, license, packages to include, dependencies, required Python version, and keywords/classifiers. The long_description is read from the README.md file.",
+    "details": [
+        {
+            "comment": "The code is a setup script for the \"gato-tf\" package, using setuptools. It specifies the package name, version, description, URL, authors, license, packages to include, dependencies, required Python version, and keywords/classifiers. The long_description is read from the README.md file.",
+            "location": "\"/media/root/Prima/works/gato/docs/src/setup.py\":0-31",
+            "content": "from setuptools import find_packages, setup\nsetup(\n    name='gato-tf',\n    version='0.0.4',\n    description='Unofficial Gato: A Generalist Agent',\n    url='https://github.com/OrigamiDream/gato.git',\n    author='OrigamiDream',\n    author_email='hello@origamidream.me',\n    long_description=open('README.md', 'r', encoding='utf-8').read(),\n    long_description_content_type='text/markdown',\n    license='MIT',\n    packages=find_packages(exclude=[]),\n    install_requires=[\n        'tensorflow>=2.11',\n        'flowchain>=0.0.4'\n    ],\n    python_requires='>=3.10.0',\n    keywords=[\n        'deep learning',\n        'gato',\n        'tensorflow',\n        'generalist agent'\n    ],\n    classifiers=[\n        'Development Status :: 4 - Beta',\n        'Intended Audience :: Developers',\n        'Topic :: Scientific/Engineering :: Artificial Intelligence',\n        'License :: OSI Approved :: MIT License',\n        'Programming Language :: Python :: 3.10'\n    ]\n)"
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "summary": "The code imports necessary modules (GatoConfig, Gato), enables tensor chaining for improved performance.",
+    "details": [
+        {
+            "comment": "The code imports necessary modules (GatoConfig, Gato), enables tensor chaining for improved performance.",
+            "location": "\"/media/root/Prima/works/gato/docs/src/gato/__init__.py\":0-4",
+            "content": "from gato.config import GatoConfig\nfrom gato.models import Gato\nfrom flowchain import enable_tensor_chaining\nenable_tensor_chaining()"
+        }
+    ]
+}
